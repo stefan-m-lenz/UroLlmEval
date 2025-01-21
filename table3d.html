@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table</title>
+</head>
+<body>
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <th></th><!-- Group column -->
+            <th></th><!-- Subgroup column -->
+            {% for category in categories %}
+                <th style="text-align: left;vertical-align: top;">{{ category }}</th>
+            {% endfor %}
+        </tr>
+        {% for group in data %}
+            {% for subgroup in group.subgroups %}
+                <tr>
+                    {% set last_row_in_group = false %}
+                    {% set first_row_in_group = false %}
+                    {% if loop.first %}
+                        <td style="border-top: 1px solid black; border-bottom: 1px solid black;" rowspan="{{ group.rowspan }}">
+                            {{ group.name }}
+                        </td>
+                        {% set first_row_in_group = true %}
+                    {% endif %}
+                    {% if loop.last %}
+                        {% set last_row_in_group = true %}
+                    {% endif %}
+
+                    {% set border_first_row = "border-top: 1px solid black;" if first_row_in_group else "" %}
+                    {% set border_last_row = "border-bottom: 1px solid black;" if last_row_in_group else "" %}
+                    {% set border_middle_row = "border: none;" if not first_row_in_group and not last_row_in_group else "" %}
+                    {% set border_style = border_first_row + border_last_row + border_middle_row %}
+                    {% set td_style = 'style="' + border_style + '"' %}
+                    <td {{ td_style }}>
+                            {{ subgroup.name }}
+                    </td>
+                    {% for category in categories %}
+                        <td {{ td_style }}>
+                            {{ subgroup.categories[category] }}
+                        </td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        {% endfor %}
+    </table>
+</body>
+</html>

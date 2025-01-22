@@ -106,7 +106,7 @@ The plots are then created in the folder `output/summary/plots`.
 
 ## Citation
 
-If you use this code or the evaluation data in your work, please consider citing the [article](http://arxiv.org/abs/2501.12106) preprint:
+If you use this code or the evaluation data in your work, please consider citing the [preprint article](http://arxiv.org/abs/2501.12106):
 
 ```bibtex
 @article{UroLlmEval_2025,

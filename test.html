@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive Bar Plots from CSV with Chart.js</title>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- PapaParse zum Einlesen der CSV -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 10px;
+    }
+
+    .chart-container {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    #grid-container {
+      display: grid;
+      width: 100%;
+      gap: 10px;
+      margin-top: 20px;
+      padding-left: 0;
+    }
+
+    .grid-item {
+      width: 100%;
+      height: 280px;
+      box-sizing: border-box;
+    }
+
+    .legend-container {
+      margin-bottom: 5px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .legend-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .legend-item {
+      cursor: pointer;
+      font-family: sans-serif;
+      margin-bottom: 2px;
+      font-size: 12;
+    }
+
+    .legend-box {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+
+    .legend-item.inactive {
+      opacity: 0.5;
+    }
+
+    #custom-legend {
+      border: 2px solid #000;
+      padding: 5px;
+      border-radius: 5px;
+      display: inline-block;
+    }
+
+    #custom-legend::before {
+      content: "Prompting Variants:";
+      display: block;
+      font-weight: bold;
+      font-size: 12;
+      margin-bottom: 7px;
+      font-family: sans-serif;
+    }
+
+    .legend-item.model {
+      margin-bottom: 5px;
+      font-size: 12;
+      cursor: pointer;
+      font-family: sans-serif;
+    }
+
+    .legend-column {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    #metrics-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    #metrics-legend::before {
+      content: "Metrics:";
+      display: block;
+      font-weight: bold;
+      font-size: 12;
+      margin-bottom: 7px;
+      font-family: sans-serif;
+    }
+    #models-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+    #models-legend::before {
+      content: "Models:";
+      display: block;
+      font-weight: bold;
+      font-size: 12;
+      margin-bottom: 7px;
+      font-family: sans-serif;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Legenden-Container: Prompting, Metriken und Modelle -->
+<div style="display: flex; gap: 40px; align-items: flex-start; margin-bottom: 20px;">
+
+  <!-- Prompting-Varianten -->
+  <div class="legend-container" id="custom-legend">
+    <div class="legend-group">
+      <span class="legend-item" data-domain="uro">
+        <span class="legend-box" style="background-color: #1f77b4;"></span> Fictious examples from urology
+      </span>
+      <span class="legend-item" data-domain="gyn">
+        <span class="legend-box" style="background-color: #d62728;"></span> Fictious examples from gynecology
+      </span>
+    </div>
+    <div class="legend-group">
+      <span class="legend-item shot" data-shot="0">0 Zero-shot Prompting without examples</span>
+      <span class="legend-item shot" data-shot="2">2 Few-shot Prompting with two examples</span>
+    </div>
+    <div class="legend-group">
+      <span class="legend-item shot" data-shot="4">4 Few-shot Prompting with 4 exampls</span>
+      <span class="legend-item shot" data-shot="6">6 Few-shot Prompting with 6 examples</span>
+    </div>
+  </div>
+
+  <!-- Metriken -->
+  <div id="metrics-legend">
+    <span class="legend-item metric" data-metric-index="0">Sensitivity</span>
+    <span class="legend-item metric" data-metric-index="1">Specificity</span>
+    <span class="legend-item metric" data-metric-index="2">Accuracy</span>
+    <span class="legend-item metric" data-metric-index="3">NA</span>
+  </div>
+
+  <!-- Modelle -->
+  <div id="models-legend"></div>
+</div>
+
+<!-- Grid-Container für Charts -->
+<div id="grid-container"></div>
+
+<script>
+  const metrics = ["recall", "specificity", "p_correct_total", "p_na"];
+  const metricDisplayNames = ["Sensitivity", "Specificity", "Accuracy", "NA"];
+  let activeMetrics = metrics.map(() => true);
+
+  const color_map = {
+    "uro": { "0": "#999999", "2": "#4292c6", "4": "#1f77b4", "6": "#08519c" },
+    "gyn": { "0": "#aaaaaa", "2": "#fcae91", "4": "#fb6a4a", "6": "#cb181d" }
+  };
+
+  const leftPadding = 20;
+  let charts = [];
+
+  Chart.register({
+    id: 'modelNamePlugin',
+    afterDraw: (chart) => {
+      const ctx = chart.ctx;
+      ctx.save();
+      const modelName = chart.config.options.modelName || '';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillStyle = 'black';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      const x = chart.chartArea.left;
+      const y = chart.chartArea.top - 5;
+      ctx.fillText(modelName, x, y);
+      ctx.restore();
+    }
+  });
+
+  function extractModelAndPrompt(results_file) {
+    let parts = results_file.split('__');
+    let modelPart = parts[0];
+    let promptType = parts[1] || "";
+    let modelParts = modelPart.split('_');
+    let modelName = modelParts[modelParts.length - 1];
+    return { modelName: modelName, promptType: promptType };
+  }
+
+  function createDatasets(rows) {
+    // Extract domain and shot combinations
+    const datasets = rows.map(row => {
+      let info = extractModelAndPrompt(row.results_file);
+      let promptParts = info.promptType.split('-');
+      let shot = promptParts[0];
+      let domain = promptParts[1];
+      let data = metrics.map(metric => parseFloat(row[metric]));
+      return {
+        label: info.promptType,
+        domain: domain,
+        shot: shot,
+        data: data,
+        originalData: data,
+        backgroundColor: (color_map[domain] && color_map[domain][shot]) ? color_map[domain][shot] : '#cccccc'
+      };
+    });
+
+    // Custom sort function:
+    // 1. Put 0-shot first
+    // 2. Then sort by domain (uro first, then gyn)
+    // 3. Then sort by shot number (2,4,6)
+    return datasets.sort((a, b) => {
+      // First bring all 0-shot to the front
+      if (a.shot === "0" && b.shot !== "0") return -1;
+      if (a.shot !== "0" && b.shot === "0") return 1;
+
+      // For 0-shot, sort by domain
+      if (a.shot === "0" && b.shot === "0") {
+        return a.domain === "uro" ? -1 : 1;
+      }
+
+      // Then sort by domain
+      if (a.domain !== b.domain) {
+        return a.domain === "uro" ? -1 : 1;
+      }
+
+      // Then sort by shot number
+      return parseInt(a.shot) - parseInt(b.shot);
+    });
+  }
+
+  function updateChartMetrics(chart) {
+    const newLabels = metrics.filter((_, i) => activeMetrics[i]);
+    chart.data.labels = newLabels;
+    chart.data.datasets.forEach(ds => {
+      ds.data = ds.originalData.filter((_, i) => activeMetrics[i]);
+    });
+    chart.update();
+  }
+
+  function createChart(canvasID, modelName, rows) {
+  const datasets = createDatasets(rows);
+  let chart = new Chart(document.getElementById(canvasID), {
+    type: 'bar',
+    data: {
+      labels: metricDisplayNames,
+      datasets: datasets
+    },
+    options: {
+      modelName: modelName,
+      layout: {
+        padding: {
+          left: leftPadding,
+          top: 25,
+          right: 5,
+          bottom: 5
+        }
+      },
+      indexAxis: 'y',
+      scales: {
+        x: {
+          min: 0,
+          max: 1,
+          beginAtZero: true
+        },
+        y: {
+          ticks: {
+            padding: 5,
+            font: {
+              size: 11
+            }
+          }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          displayColors: true,
+          callbacks: {
+            title: function(tooltipItems) {
+              const item = tooltipItems[0];
+              const dataset = item.dataset;
+              return `${dataset.domain} - ${dataset.shot} shot`;
+            }
+          }
+        }
+      },
+      maintainAspectRatio: false,
+      devicePixelRatio: 2
+    }
+  });
+  return chart;
+}
+
+  function createGridLayout(totalItems) {
+    const gridContainer = document.getElementById("grid-container");
+
+    // Bestimme optimale Grid-Dimensionen
+    let cols;
+    if (totalItems <= 2) cols = totalItems;
+    else if (totalItems <= 6) cols = Math.ceil(totalItems / 2);
+    else if (totalItems <= 12) cols = Math.ceil(totalItems / 3);
+    else cols = 4;
+
+    const rows = Math.ceil(totalItems / cols);
+
+    gridContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+    return gridContainer;
+  }
+
+  Papa.parse("output/analysis_step1.csv", {
+    download: true,
+    header: true,
+    complete: function(results) {
+      const data = results.data;
+      let models = {};
+
+      data.forEach(row => {
+        if (row.results_file) {
+          let info = extractModelAndPrompt(row.results_file);
+          row.modelName = info.modelName;
+          row.promptType = info.promptType;
+          if (!models[info.modelName]) {
+            models[info.modelName] = [];
+          }
+          models[info.modelName].push(row);
+        }
+      });
+
+      const uniqueModels = Object.keys(models);
+
+      // Create grid layout based on number of models
+      const gridContainer = createGridLayout(uniqueModels.length);
+
+      uniqueModels.forEach(modelName => {
+        // Create grid item container
+        const gridItem = document.createElement("div");
+        gridItem.classList.add("grid-item");
+        gridItem.id = "container_" + modelName;
+        gridContainer.appendChild(gridItem);
+
+        // Create canvas inside grid item
+        const canvas = document.createElement("canvas");
+        canvas.id = "chart_" + modelName;
+        canvas.classList.add("chart-container");
+        gridItem.appendChild(canvas);
+
+        charts.push(createChart(canvas.id, modelName, models[modelName]));
+      });
+
+      // Resize all charts to fit container - with slight delay for proper rendering
+      window.addEventListener('resize', function() {
+        setTimeout(() => {
+          charts.forEach(chart => chart.resize());
+        }, 100);
+      });
+
+      const modelsLegend = document.getElementById("models-legend");
+      const modelsPerColumn = 5;
+      const columnCount = Math.ceil(uniqueModels.length / modelsPerColumn);
+
+      // Create columns for model names
+      for (let i = 0; i < columnCount; i++) {
+        const column = document.createElement("div");
+        column.classList.add("legend-column");
+
+        // Get models for this column
+        const startIndex = i * modelsPerColumn;
+        const endIndex = Math.min((i + 1) * modelsPerColumn, uniqueModels.length);
+
+        for (let j = startIndex; j < endIndex; j++) {
+          const modelName = uniqueModels[j];
+          const item = document.createElement("span");
+          item.classList.add("legend-item", "model");
+          item.textContent = modelName;
+          item.dataset.modelName = modelName;
+
+          item.addEventListener('click', () => {
+            const gridItem = document.getElementById("container_" + modelName);
+
+            if (gridItem.style.display === "none") {
+              gridItem.style.display = "block";
+              item.classList.remove("inactive");
+            } else {
+              gridItem.style.display = "none";
+              item.classList.add("inactive");
+            }
+
+            // Reorganize grid when models are hidden/shown
+            const visibleItems = document.querySelectorAll('.grid-item:not([style*="display: none"])');
+            createGridLayout(visibleItems.length);
+
+            // Resize all charts after layout change
+            setTimeout(() => {
+              charts.forEach(chart => chart.resize());
+            }, 100);
+          });
+
+          column.appendChild(item);
+        }
+
+        modelsLegend.appendChild(column);
+      }
+
+      setTimeout(() => {
+        charts.forEach(chart => chart.resize());
+      }, 100);
+    }
+  });
+
+  document.querySelectorAll('.legend-item:not(.shot):not(.metric)').forEach(item => {
+    item.addEventListener('click', () => {
+      const domain = item.dataset.domain;
+      item.classList.toggle('inactive');
+      charts.forEach(chart => {
+        chart.data.datasets.forEach(ds => {
+          if (ds.domain === domain) {
+            ds.hidden = item.classList.contains('inactive');
+          }
+        });
+        chart.update();
+      });
+    });
+  });
+
+  document.querySelectorAll('.legend-item.shot').forEach(item => {
+    item.addEventListener('click', () => {
+      const shot = item.dataset.shot;
+      item.classList.toggle('inactive');
+      charts.forEach(chart => {
+        chart.data.datasets.forEach(ds => {
+          if (ds.shot === shot) {
+            ds.hidden = item.classList.contains('inactive');
+          }
+        });
+        chart.update();
+      });
+    });
+  });
+
+  document.querySelectorAll('.legend-item.metric').forEach(item => {
+    item.addEventListener('click', () => {
+      const metricIndex = parseInt(item.dataset.metricIndex);
+      activeMetrics[metricIndex] = !activeMetrics[metricIndex];
+      item.classList.toggle('inactive');
+      charts.forEach(chart => {
+        updateChartMetrics(chart);
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

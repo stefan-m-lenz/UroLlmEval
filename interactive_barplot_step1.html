@@ -31,7 +31,7 @@
       display: flex;
       flex-wrap: wrap;
       gap: 20px;
-      justify-content: flex-start;
+      justify-content: center;
       align-items: stretch;
       width: 100%;
       margin-top: 20px;
@@ -44,12 +44,10 @@
       box-sizing: border-box;
     }
     #custom-legend {
-      border: 2px solid #000;
-      padding: 5px;
-      border-radius: 5px;
       display: flex;
-      align-items: center;
-      gap: 10px;
+      flex-wrap: nowrap;
+      align-items: flex-start;
+      gap: 20px;
       font-family: Arial, Helvetica, sans-serif;
     }
     .legend-group {
@@ -196,7 +194,7 @@
   </h1>
 
   <!-- Top legends container -->
-  <div style="display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start; margin-bottom: 20px;">
+  <div style="display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start; justify-content: center; margin-bottom: 20px;">
     <!-- Prompting variants -->
     <div id="custom-legend">
       <span class="legend-heading">Prompting Variants:</span>
@@ -211,8 +209,6 @@
       <div class="legend-group">
         <span class="legend-item shot" data-shot="0">0 Zero-shot Prompting</span>
         <span class="legend-item shot" data-shot="2">2 Few-shot Prompting</span>
-      </div>
-      <div class="legend-group">
         <span class="legend-item shot" data-shot="4">4 Few-shot Prompting</span>
         <span class="legend-item shot" data-shot="6">6 Few-shot Prompting</span>
       </div>
@@ -379,7 +375,7 @@
           shot: shot,
           data: data,
           originalData: data,
-          backgroundColor: (color_map[domain] && color_map[domain][shot]) ? color_map[domain][shot] : '#cccccc'
+          backgroundColor: (color_map[domain] && color_map[domain][shot]) ? color_map[domain][shot] : '#A48D79'
         };
       });
 

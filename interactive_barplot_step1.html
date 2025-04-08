@@ -554,7 +554,6 @@
 
         // Create a chart for each model in order
         uniqueModels.forEach(modelName => {
-          console.log("Debug - Model ID:", modelName, "Display Label:", getModelLabel(modelName));
           const gridItem = document.createElement("div");
           gridItem.classList.add("grid-item");
           gridItem.id = "container_" + modelName;
@@ -587,14 +586,10 @@
     /****************************************************
      * 5) Update Models Legend Layout Based on Grid Container
      ****************************************************/
-    function updateModelsLegendLayout(uniqueModels) {
-      if (!uniqueModels) {
-        const modelsLegend = document.getElementById("models-legend");
-        const items = modelsLegend.querySelectorAll('.model');
-        uniqueModels = Array.from(items).map(item => item.dataset.modelName);
-      }
-
+     function updateModelsLegendLayout() {
       const gridContainer = document.getElementById("grid-container");
+      const gridItems = Array.from(gridContainer.getElementsByClassName("grid-item"));
+      const uniqueModels = gridItems.map(item => item.id.replace("container_", ""));
       const chartWidth = 500;
       const gap = 20;
       const containerWidth = gridContainer.clientWidth;

@@ -657,11 +657,11 @@
 
     document.querySelectorAll('.legend-item.shot').forEach(item => {
       item.addEventListener('click', () => {
-        const shot = item.dataset.shot; // Hier z.B. "0" oder "0b"
+        const shot = item.dataset.shot;
         item.classList.toggle('inactive');
         charts.forEach(chart => {
           chart.data.datasets.forEach(ds => {
-            if (ds.variant === shot) {  // Vergleiche nun den eindeutigen variant-Wert
+            if (ds.variant === shot) {
               ds.hidden = item.classList.contains('inactive');
             }
           });

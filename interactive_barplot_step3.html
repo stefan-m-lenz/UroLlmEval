@@ -217,6 +217,7 @@
         </span>
         <span class="legend-item shot" data-shot="4">
           <span class="legend-box" style="background: #eabb1f;"></span> Filter dates and verify using Few-shot Prompting
+        </span>
       </div>
     </div>
     <!-- Metrics legend -->
@@ -233,7 +234,6 @@
       <span class="legend-heading">Models:</span>
     </div>
   </div>
-
   <!-- Grid container for charts -->
   <div id="grid-container"></div>
 
@@ -241,6 +241,8 @@
     /****************************************************
      * 1) Mappings and Utility Functions
      ****************************************************/
+    let charts = [];
+
     const METRIC_LABELS = {
       "recall": "Sensitivity",
       "specificity": "Specificity",
@@ -358,22 +360,21 @@
     };
 
     Chart.register({
-        id: 'modelNamePlugin',
-        afterDraw: (chart) => {
-            const ctx = chart.ctx;
-            ctx.save();
-            const modelName = chart.config.options.modelName || '';
-            ctx.font = 'bold 16px sans-serif';
-            ctx.fillStyle = 'black';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'bottom';
-            const x = chart.chartArea.left;
-            const y = chart.chartArea.top - 5;
-            ctx.fillText(modelName, x, y);
-            ctx.restore();
-        }
-        });
-
+      id: 'modelNamePlugin',
+      afterDraw: (chart) => {
+        const ctx = chart.ctx;
+        ctx.save();
+        const modelName = chart.config.options.modelName || '';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillStyle = 'black';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        const x = chart.chartArea.left;
+        const y = chart.chartArea.top - 5;
+        ctx.fillText(modelName, x, y);
+        ctx.restore();
+      }
+    });
 
     function createDatasets(rows) {
       const datasets = rows.map(row => {
@@ -406,10 +407,10 @@
       });
 
       return datasets.sort((a, b) => {
-            const order = { "0": 0, "0b": 1, "3": 2, "3b": 3, "0c": 4, "4": 5 };
-            return (order[a.shot] ?? 999) - (order[b.shot] ?? 999);
-        });
-        }
+        const order = { "0": 0, "0b": 1, "3": 2, "3b": 3, "0c": 4, "4": 5 };
+        return (order[a.shot] ?? 999) - (order[b.shot] ?? 999);
+      });
+    }
 
     function updateChartMetrics(chart) {
       const newLabels = metrics
@@ -460,9 +461,22 @@
               displayColors: true,
               callbacks: {
                 title: function(tooltipItems) {
-                  const ds = tooltipItems[0].dataset;
-                  // Zeige in der Tooltip den Prompting-Typ (bzw. Variante) an
-                  return ds.shot;
+                  const ds = tooltipItems[0].chart.data.datasets[tooltipItems[0].datasetIndex];
+                  let base = "";
+                  let suffix = "";
+                  if (ds.shot.endsWith("b")) {
+                    base = ds.shot.slice(0, -1);
+                    suffix = " (with regex)";
+                  } else if (ds.shot.endsWith("c")) {
+                    base = ds.shot.slice(0, -1);
+                    suffix = " - filter & verify";
+                  } else {
+                    base = ds.shot;
+                    if(ds.shot === "4") {
+                      suffix = " - filter & verify";
+                    }
+                  }
+                  return base + " shot" + suffix;
                 }
               }
             }
@@ -488,10 +502,11 @@
       const modelsLegend = document.getElementById("models-legend");
       modelsLegend.innerHTML = '<span class="legend-heading">Models:</span>';
 
-      // Gruppiere Modelle in Spalten
+      // Group models into columns
       const modelsByColumn = Array(columnsCount).fill().map(() => []);
       const columnWidths = Array(columnsCount).fill(0);
 
+      // Find the longest model name in each column to determine width
       uniqueModels.forEach((model, index) => {
         const colIndex = index % columnsCount;
         modelsByColumn[colIndex].push({ model, label: getModelLabel(model) });
@@ -501,6 +516,7 @@
         }
       });
 
+      // Create columns with items
       modelsByColumn.forEach((models, colIndex) => {
         if (models.length === 0) return;
         const column = document.createElement("div");
@@ -535,7 +551,6 @@
 
     function updateModelsLegendLayout(uniqueModels) {
       const gridContainer = document.getElementById("grid-container");
-      const gridItems = Array.from(gridContainer.getElementsByClassName("grid-item"));
       const chartWidth = 500;
       const gap = 20;
       const containerWidth = gridContainer.clientWidth;
@@ -543,15 +558,12 @@
       createModelLegendColumns(uniqueModels, cols);
     }
 
-    /****************************************************
-     * 5) CSV Parsing and Chart Initialization for Step 3
-     ****************************************************/
     Papa.parse("output/analysis_step3.csv", {
       download: true,
       header: true,
       complete: function(results) {
         const data = results.data;
-        // Gruppiere die Daten pro Modell und pro promptType. Dabei wähle den Datensatz mit dem höchsten p_correct-Wert.
+        // Group data per model and prompttype and keep "best"
         let models = {};
         data.forEach(row => {
           if (row.results_file) {
@@ -575,6 +587,7 @@
         uniqueModels = orderModels(uniqueModels);
 
         const gridContainer = document.getElementById("grid-container");
+        // Create a chart for each model in order
         uniqueModels.forEach(modelName => {
           const gridItem = document.createElement("div");
           gridItem.classList.add("grid-item");
@@ -590,7 +603,7 @@
           charts.push(chart);
         });
 
-        // Initialisiere SortableJS für Drag & Drop
+        // Initialize SortableJS on the grid container for drag-and-drop reordering
         Sortable.create(gridContainer, {
           animation: 150,
           ghostClass: 'sortable-ghost'
@@ -604,7 +617,7 @@
     });
 
     /****************************************************
-     * 6) Legend Interactions for Variant and Metric toggling
+     * 5) Update Models Legend Layout Based on Grid Container
      ****************************************************/
     document.querySelectorAll('.legend-item.shot').forEach(item => {
       item.addEventListener('click', () => {
@@ -621,6 +634,9 @@
       });
     });
 
+    /****************************************************
+     * 6) Legend Interactions for Domain, Shot, Metrics
+     ****************************************************/
     document.querySelectorAll('.legend-item.metric').forEach(item => {
       item.addEventListener('click', () => {
         const metricIndex = parseInt(item.dataset.metricIndex);
@@ -632,11 +648,11 @@
       });
     });
 
-    // Global charts array
-    let charts = [];
-    // Bei Resize des Fensters Layout und Chart-Größe aktualisieren
     window.addEventListener('resize', () => {
-      updateModelsLegendLayout(Object.keys(charts));
+      const gridContainer = document.getElementById("grid-container");
+      const gridItems = Array.from(gridContainer.getElementsByClassName("grid-item"));
+      const uniqueModels = gridItems.map(item => item.id.replace("container_", ""));
+      updateModelsLegendLayout(uniqueModels);
       setTimeout(() => {
         charts.forEach(c => c.resize());
       }, 100);

@@ -356,7 +356,8 @@
       "3": "#BC99EB",
       "3b": "#6a00cc",
       "0c": "#f5dd90",
-      "4": "#eabb1f"
+      "4": "#eabb1f",
+      "regex": "#7A7A7A"
     };
 
     Chart.register({
@@ -380,8 +381,9 @@
       const datasets = rows.map(row => {
         const info = extractModelAndPrompt(row.results_file);
         let shotVariant = "";
-        // Zuordnung der promptType zu unseren Kürzeln:
-        if (info.promptType.indexOf("0-dates") !== -1) {
+        if (info.modelName === "levenshtein-regex") {
+            shotVariant = "regex";
+        } else if (info.promptType.indexOf("0-dates") !== -1) {
           shotVariant = "0b";
         } else if (info.promptType.indexOf("0-verify") !== -1) {
           shotVariant = "0c";
@@ -462,6 +464,9 @@
               callbacks: {
                 title: function(tooltipItems) {
                   const ds = tooltipItems[0].chart.data.datasets[tooltipItems[0].datasetIndex];
+                  if (ds.shot === "regex") {
+                    return "Levenshtein/Regex heuristics";
+                  }
                   let base = "";
                   let suffix = "";
                   if (ds.shot.endsWith("b")) {

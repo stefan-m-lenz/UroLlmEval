@@ -564,29 +564,36 @@
     }
 
     Papa.parse("output/analysis_step3.csv", {
-      download: true,
-      header: true,
-      complete: function(results) {
+    download: true,
+    header: true,
+    complete: function(results) {
         const data = results.data;
         // Group data per model and prompttype and keep "best"
         let models = {};
         data.forEach(row => {
-          if (row.results_file) {
+        if (row.results_file) {
             const info = extractModelAndPrompt(row.results_file);
             row.modelName = info.modelName;
             row.promptType = info.promptType;
             if (!models[info.modelName]) {
-              models[info.modelName] = {};
+            models[info.modelName] = {};
             }
             if (!models[info.modelName][info.promptType] ||
                 parseFloat(row["p_correct"]) > parseFloat(models[info.modelName][info.promptType]["p_correct"])) {
-              models[info.modelName][info.promptType] = row;
+            models[info.modelName][info.promptType] = row;
             }
-          }
+        }
         });
         let groupedModels = {};
         for (const model in models) {
-          groupedModels[model] = Object.values(models[model]);
+        groupedModels[model] = Object.values(models[model]);
+        if (model === "levenshtein-regex") {
+            let rows = groupedModels[model];
+            let bestRow = rows.reduce((acc, curr) => {
+            return parseFloat(curr["p_correct"]) > parseFloat(acc["p_correct"]) ? curr : acc;
+            }, rows[0]);
+            groupedModels[model] = [bestRow];
+        }
         }
         let uniqueModels = Object.keys(groupedModels);
         uniqueModels = orderModels(uniqueModels);
@@ -594,31 +601,31 @@
         const gridContainer = document.getElementById("grid-container");
         // Create a chart for each model in order
         uniqueModels.forEach(modelName => {
-          const gridItem = document.createElement("div");
-          gridItem.classList.add("grid-item");
-          gridItem.id = "container_" + modelName;
-          gridContainer.appendChild(gridItem);
+        const gridItem = document.createElement("div");
+        gridItem.classList.add("grid-item");
+        gridItem.id = "container_" + modelName;
+        gridContainer.appendChild(gridItem);
 
-          const canvas = document.createElement("canvas");
-          canvas.id = "chart_" + modelName;
-          canvas.classList.add("chart-container");
-          gridItem.appendChild(canvas);
+        const canvas = document.createElement("canvas");
+        canvas.id = "chart_" + modelName;
+        canvas.classList.add("chart-container");
+        gridItem.appendChild(canvas);
 
-          const chart = createChart(canvas.id, getModelLabel(modelName), groupedModels[modelName]);
-          charts.push(chart);
+        const chart = createChart(canvas.id, getModelLabel(modelName), groupedModels[modelName]);
+        charts.push(chart);
         });
 
         // Initialize SortableJS on the grid container for drag-and-drop reordering
         Sortable.create(gridContainer, {
-          animation: 150,
-          ghostClass: 'sortable-ghost'
+        animation: 150,
+        ghostClass: 'sortable-ghost'
         });
 
         updateModelsLegendLayout(uniqueModels);
         setTimeout(() => {
-          charts.forEach(chart => chart.resize());
+        charts.forEach(chart => chart.resize());
         }, 100);
-      }
+    }
     });
 
     /****************************************************

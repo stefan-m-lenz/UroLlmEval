@@ -74,8 +74,8 @@
       display: flex;
       flex-wrap: nowrap;
       align-items: flex-start;
-      gap: 5px;
-      margin-left: 50px;
+      gap: 10px;
+      margin-left: 20px;
       margin-right: 20px;
     }
     .metrics-column {
@@ -193,7 +193,7 @@
     </span>
   </h1>
   <!-- Top legends container -->
-  <div style="display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start; justify-content: center; margin-bottom: 20px;">
+  <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; justify-content: center; margin-bottom: 20px;">
     <!-- Prompting variants -->
     <div id="custom-legend">
       <span class="legend-heading">Prompting Variants:</span>
@@ -213,10 +213,10 @@
       </div>
       <div class="legend-group">
         <span class="legend-item shot" data-shot="0c">
-          <span class="legend-box" style="background: #f5dd90;"></span> Filter dates and verify using zero-shot prompting
+          <span class="legend-box" style="background: #f5dd90;"></span> Filter dates and verify using Zero-shot Prompting
         </span>
         <span class="legend-item shot" data-shot="4">
-          <span class="legend-box" style="background: #eabb1f;"></span> Filter dates and verify using few-shot prompting
+          <span class="legend-box" style="background: #eabb1f;"></span> Filter dates and verify using Few-shot Prompting
       </div>
     </div>
     <!-- Metrics legend -->
@@ -356,6 +356,24 @@
       "0c": "#f5dd90",
       "4": "#eabb1f"
     };
+
+    Chart.register({
+        id: 'modelNamePlugin',
+        afterDraw: (chart) => {
+            const ctx = chart.ctx;
+            ctx.save();
+            const modelName = chart.config.options.modelName || '';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+            const x = chart.chartArea.left;
+            const y = chart.chartArea.top - 5;
+            ctx.fillText(modelName, x, y);
+            ctx.restore();
+        }
+        });
+
 
     function createDatasets(rows) {
       const datasets = rows.map(row => {

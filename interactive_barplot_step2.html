@@ -200,24 +200,24 @@
       <span class="legend-heading">Prompting Variants:</span>
       <div class="legend-group">
         <span class="legend-item" data-domain="uro">
-          <span class="legend-box" style="background-color: #1f77b4;"></span> Fictious examples from urology
+          <canvas class="legend-box" width="12" height="12" data-color="#1f77b4"></canvas> Fictious examples from urology
         </span>
         <span class="legend-item" data-domain="gyn">
-          <span class="legend-box" style="background-color: #d62728;"></span> Fictious examples from gynecology
+          <canvas class="legend-box" width="12" height="12" data-color="#d62728"></canvas> Fictious examples from gynecology
         </span>
       </div>
       <div class="legend-group">
         <span class="legend-item shot" data-shot="0">
-          <span class="legend-box" style="background: linear-gradient(to right, #A1C8E3 50%, #fcae91 50%);"></span> Zero-shot prompting with two ICD-10 codes as examples
+          <canvas class="legend-box" width="12" height="12" data-colors="#A1C8E3,#fcae91" data-gradient="true"></canvas> Zero-shot prompting with two ICD-10 codes as examples
         </span>
         <span class="legend-item shot" data-shot="0b">
-          <span class="legend-box" style="background: linear-gradient(to right, #4392C7 50%, #fb6a4a 50%);"></span> Zero-shot prompting with two examples + text context
+          <canvas class="legend-box" width="12" height="12" data-colors="#A1C8E3,#fcae91" data-gradient="true" data-hatch="true"></canvas> Zero-shot prompting with two examples + text context
         </span>
         <span class="legend-item shot" data-shot="2">
-          <span class="legend-box" style="background: linear-gradient(to right, #08519c 50%, #cb181d 50%);"></span> Two-shot prompting with two ICD-10 codes as examples
+          <canvas class="legend-box" width="12" height="12" data-colors="#4392C7,#cb181d" data-gradient="true"></canvas> Two-shot prompting with two ICD-10 codes as examples
         </span>
         <span class="legend-item shot" data-shot="2b">
-          <span class="legend-box" style="background: linear-gradient(to right, #053061 50%, #67000d 50%);"></span> Two-shot prompting with two examples + text context
+          <canvas class="legend-box" width="12" height="12" data-colors="#4392C7,#cb181d" data-gradient="true" data-hatch="true"></canvas> Two-shot prompting with two examples + text context
         </span>
       </div>
     </div>
@@ -287,6 +287,70 @@
       return models.sort((a, b) => (modelOrder[a] ?? Infinity) - (modelOrder[b] ?? Infinity));
     }
 
+    function getHatchPattern(color) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 10;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, 10, 10);
+
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 10);
+      ctx.lineTo(10, 0);
+      ctx.stroke();
+
+      return ctx.createPattern(canvas, 'repeat');
+    }
+
+    function renderLegendBoxes() {
+      document.querySelectorAll('.legend-box').forEach(canvas => {
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+
+        if (canvas.dataset.gradient) {
+          const colors = canvas.dataset.colors.split(',');
+
+          ctx.fillStyle = colors[0];
+          ctx.fillRect(0, 0, width/2, height);
+
+          ctx.fillStyle = colors[1];
+          ctx.fillRect(width/2, 0, width/2, height);
+
+          if (canvas.dataset.hatch) {
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            for (let i = -height; i <= width + height; i += 7) {
+              ctx.moveTo(i, height);
+              ctx.lineTo(i + height, 0);
+            }
+            ctx.stroke();
+          }
+        } else {
+          ctx.fillStyle = canvas.dataset.color;
+          ctx.fillRect(0, 0, width, height);
+
+          if (canvas.dataset.hatch) {
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            for (let i = -height; i <= width + height; i += 7) {
+              ctx.moveTo(i, height);
+              ctx.lineTo(i + height, 0);
+            }
+            ctx.stroke();
+          }
+        }
+      });
+    }
+
+
     /****************************************************
      * 2) Extraction Functions
      ****************************************************/
@@ -350,10 +414,9 @@
     const metricDisplayNames = metrics.map(metric => getMetricLabel(metric));
     let activeMetrics = metrics.map(() => true);
 
-    // Variants with context added a "b"
     const color_map = {
-      "uro": { "0": "#A1C8E3", "0b": "#4392C7", "2": "#08519c", "2b": "#053061" },
-      "gyn": { "0": "#fcae91", "0b": "#fb6a4a", "2": "#cb181d", "2b": "#67000d" }
+      "uro": { "0": "#A1C8E3", "2": "#4392C7" },
+      "gyn": { "0": "#fcae91", "2": "#cb181d" }
     };
 
     const leftPadding = 20;
@@ -390,7 +453,11 @@
           label += " (ctx)";
         }
 
-        const data = metrics.map(metric => parseFloat(row[metric]));
+      const data = metrics.map(metric => parseFloat(row[metric]));
+
+      const baseColor = (color_map[domain] && color_map[domain][shot]) ? color_map[domain][shot] : '#A48D79';
+      const bgColor = ctx ? getHatchPattern(baseColor) : baseColor;
+
       return {
         label: info.promptType,
         domain: domain,
@@ -399,9 +466,7 @@
         ctx: ctx,
         data: data,
         originalData: data,
-        backgroundColor: (color_map[domain] && color_map[domain][variant])
-                          ? color_map[domain][variant]
-                          : '#A48D79'
+        backgroundColor: bgColor
       };
     });
 
@@ -608,6 +673,9 @@
         // Build Models Legend with optimal column count
         updateModelsLegendLayout(uniqueModels);
 
+        // Render legend boxes
+        renderLegendBoxes();
+
         setTimeout(() => {
           charts.forEach(chart => chart.resize());
         }, 100);
@@ -634,6 +702,7 @@
       updateModelsLegendLayout();
       setTimeout(() => {
         charts.forEach(c => c.resize());
+        renderLegendBoxes();
       }, 100);
     });
 
@@ -679,6 +748,10 @@
           updateChartMetrics(chart);
         });
       });
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+      renderLegendBoxes();
     });
   </script>
 </body>

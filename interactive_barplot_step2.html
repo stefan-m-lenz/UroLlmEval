@@ -164,10 +164,6 @@
       margin: 5px 0;
       padding-left: 20px;
     }
-    .overline {
-      text-decoration: overline;
-      display: inline-block;
-    }
   </style>
 </head>
 <body>
@@ -212,16 +208,16 @@
       </div>
       <div class="legend-group">
         <span class="legend-item shot" data-shot="0">
-          0 Zero-shot Prompting with two ICD-10 codes as examples
+          <span class="legend-box" style="background: linear-gradient(to right, #A1C8E3 50%, #fcae91 50%);"></span> Zero-shot Prompting with two ICD-10 codes as examples
         </span>
         <span class="legend-item shot" data-shot="0b">
-          <span class="overline">0</span> Zero-shot Prompting with two examples + text context
+          <span class="legend-box" style="background: linear-gradient(to right, #4392C7 50%, #fb6a4a 50%);"></span> Zero-shot Prompting with two examples + text context
         </span>
         <span class="legend-item shot" data-shot="2">
-          2 Few-shot Prompting with two ICD-10 Codes as Examples
+          <span class="legend-box" style="background: linear-gradient(to right, #08519c 50%, #cb181d 50%);"></span> Two-shot Prompting with two ICD-10 Codes as Examples
         </span>
         <span class="legend-item shot" data-shot="2b">
-          <span class="overline">2</span> Few-shot Prompting with two examples + text context
+          <span class="legend-box" style="background: linear-gradient(to right, #053061 50%, #67000d 50%);"></span> Two-shot Prompting with two examples + text context
         </span>
       </div>
     </div>
@@ -381,46 +377,47 @@
     });
 
     function createDatasets(rows) {
-    const datasets = rows.map(row => {
+      const datasets = rows.map(row => {
         const info = extractModelAndPrompt(row.results_file);
         const parts = info.promptType.split('-');
         const shot = parts[0];
         const domain = parts[1];
         const ctx = parts.length > 2 && parts[2] === 'ctx';
+        const variant = ctx ? shot + "b" : shot;
 
         let label = shot;
         if (ctx) {
-        label += " (ctx)";
+          label += " (ctx)";
         }
 
         const data = metrics.map(metric => parseFloat(row[metric]));
-        return {
+      return {
         label: info.promptType,
         domain: domain,
         shot: shot,
+        variant: variant,
         ctx: ctx,
         data: data,
         originalData: data,
-        backgroundColor: (color_map[domain] && color_map[domain][ctx ? shot + "b" : shot])
-                            ? color_map[domain][ctx ? shot + "b" : shot]
-                            : '#A48D79'
-        };
+        backgroundColor: (color_map[domain] && color_map[domain][variant])
+                          ? color_map[domain][variant]
+                          : '#A48D79'
+      };
     });
 
-    // Sort datasets: by domain order, then shot number and context
-    return datasets.sort((a, b) => {
+      return datasets.sort((a, b) => {
         if (a.domain !== b.domain) {
-        return a.domain === "uro" ? -1 : 1;
+          return a.domain === "uro" ? -1 : 1;
         }
         const shotDiff = parseInt(a.shot) - parseInt(b.shot);
         if (shotDiff !== 0) {
-        return shotDiff;
+          return shotDiff;
         }
         if (a.ctx === b.ctx) {
-        return 0;
+          return 0;
         }
         return a.ctx ? 1 : -1;
-    });
+      });
     }
 
 
@@ -660,11 +657,11 @@
 
     document.querySelectorAll('.legend-item.shot').forEach(item => {
       item.addEventListener('click', () => {
-        const shot = item.dataset.shot;
+        const shot = item.dataset.shot; // Hier z.B. "0" oder "0b"
         item.classList.toggle('inactive');
         charts.forEach(chart => {
           chart.data.datasets.forEach(ds => {
-            if (ds.shot === shot || ds.shot + "b" === shot) {
+            if (ds.variant === shot) {  // Vergleiche nun den eindeutigen variant-Wert
               ds.hidden = item.classList.contains('inactive');
             }
           });

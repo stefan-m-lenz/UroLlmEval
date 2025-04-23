@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive Bar Plots Step 3</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 10px;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    .main-title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      text-align: center;
+      padding-bottom: 20px;
+    }
+    .chart-container {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    #grid-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      align-items: stretch;
+      width: 100%;
+      margin-top: 20px;
+    }
+    .grid-item {
+      flex: 1 1 360px;
+      max-width: 500px;
+      min-width: 500px;
+      height: 280px;
+      box-sizing: border-box;
+    }
+    #custom-legend {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: flex-start;
+      gap: 20px;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    .legend-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .legend-item {
+      cursor: pointer;
+      font-size: 14px;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    .legend-box {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+    .legend-item.inactive {
+      opacity: 0.5;
+    }
+    #metrics-legend {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: flex-start;
+      gap: 10px;
+      margin-left: 20px;
+      margin-right: 20px;
+    }
+    .metrics-column {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    #models-legend {
+      display: flex;
+      align-items: top;
+      gap: 10px;
+    }
+    .models-column {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .legend-heading {
+      font-weight: bold;
+      font-size: 14px;
+      font-family: Arial, Helvetica, sans-serif;
+      margin-right: 5px;
+      align-self: top;
+    }
+    .sortable-ghost {
+      opacity: 0.5;
+    }
+    .info-icon-container {
+      position: relative;
+      display: inline-block;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+    .info-icon {
+      cursor: pointer;
+      color: #4392C7;
+      font-size: 20px;
+    }
+    .info-tooltip {
+      visibility: hidden;
+      width: 400px;
+      background-color: #f8f9fa;
+      color: #333;
+      text-align: left;
+      border-radius: 6px;
+      padding: 12px;
+      position: absolute;
+      z-index: 1;
+      top: 125%;
+      left: 50%;
+      margin-left: -200px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      border: 1px solid #ddd;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .info-tooltip::after {
+      content: "";
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      margin-left: -5px;
+      border-width: 5px;
+      border-style: solid;
+      border-color: transparent transparent #f8f9fa transparent;
+    }
+    .info-icon-container:hover .info-tooltip {
+      visibility: visible;
+      opacity: 1;
+    }
+    .tooltip-title {
+      font-weight: bold;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+    .tooltip-section {
+      margin-bottom: 10px;
+    }
+    .tooltip-section-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .tooltip-list {
+      margin: 5px 0;
+      padding-left: 20px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Main title and info tooltip -->
+  <h1 class="main-title">
+    Proportion of Correctly Identified First Diagnosis Dates Using Different Models
+    <span class="info-icon-container">
+      <i class="fas fa-info-circle info-icon"></i>
+      <div class="info-tooltip">
+        <div class="tooltip-title">Interactive Bar Plot Guide</div>
+        <div class="tooltip-section">
+          <div class="tooltip-section-title">Interactivity Features:</div>
+          <ul class="tooltip-list">
+            <li>Click on any legend item (prompting variants, metrics, models) to toggle their visibility</li>
+            <li>Drag and drop model charts to reorder them as needed</li>
+            <li>Hover over bars to see detailed information</li>
+          </ul>
+        </div>
+        <div class="tooltip-section">
+          <div class="tooltip-section-title">Tips:</div>
+          <ul class="tooltip-list">
+            <li>Hide/show specific models to focus your comparison</li>
+            <li>Toggle between metrics to analyze different aspects of performance</li>
+          </ul>
+        </div>
+      </div>
+    </span>
+  </h1>
+  <!-- Top legends container -->
+  <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; justify-content: center; margin-bottom: 20px;">
+    <!-- Prompting variants -->
+    <div id="custom-legend">
+      <span class="legend-heading">Prompting Variants:</span>
+      <div class="legend-group">
+        <span class="legend-item shot" data-shot="0">
+          <span class="legend-box" style="background: #A48D79;"></span> Zero-shot prompting
+        </span>
+        <span class="legend-item shot" data-shot="0b">
+          <span class="legend-box" style="background: #615142;"></span> Zero-shot prompting using dates filtered with regular expressions
+        </span>
+        <span class="legend-item shot" data-shot="3">
+          <span class="legend-box" style="background: #BC99EB;"></span> Three-shot prompting with three fictious examples
+        </span>
+        <span class="legend-item shot" data-shot="3b">
+          <span class="legend-box" style="background: #6a00cc;"></span> Three-shot prompting using dates filtered with regular expressions
+        </span>
+      </div>
+      <div class="legend-group">
+        <span class="legend-item shot" data-shot="0c">
+          <span class="legend-box" style="background: #f5dd90;"></span> Filter dates and verify using zero-shot prompting
+        </span>
+        <span class="legend-item shot" data-shot="4">
+          <span class="legend-box" style="background: #eabb1f;"></span> Filter dates and verify using four-shot prompting
+        </span>
+      </div>
+    </div>
+    <!-- Metrics legend -->
+    <div id="metrics-legend">
+      <span class="legend-heading">Metrics:</span>
+      <div class="metrics-column">
+        <span class="legend-item metric" data-metric-index="0">Accuracy (excl. NA)</span>
+        <span class="legend-item metric" data-metric-index="1">Accuracy (NA=wrong)</span>
+        <span class="legend-item metric" data-metric-index="2">NA</span>
+      </div>
+    </div>
+    <!-- Models legend -->
+    <div id="models-legend">
+      <span class="legend-heading">Models:</span>
+    </div>
+  </div>
+  <!-- Grid container for charts -->
+  <div id="grid-container"></div>
+
+  <script>
+/****************************************************
+ * 1) Mappings and Utility Functions
+ ****************************************************/
+ let charts = [];
+
+const METRIC_LABELS = {
+  "p_correct": "Accuracy (excl. NA)",
+  "p_correct_total": "Accuracy (NA=wrong)",
+  "p_na": "NA"
+};
+
+const MODEL_LABELS = {"BioMistral_BioMistral-7B": "BioMistral-7B", "LeoLM_leo-hessianai-7b-chat": "LeoLM 7B Chat", "VAGOsolutions_Llama-3.1-SauerkrautLM-8b-Instruct": "Llama 3.1 SauerkrautLM 8B", "levenshtein-regex": "Levenshtein/Regex heuristics", "meta-llama_Llama-3.2-1B-Instruct": "LLama 3.2 1B", "meta-llama_Llama-3.2-3B-Instruct": "LLama 3.2 3B", "meta-llama_Meta-Llama-3.1-70B-Instruct": "Llama 3.1 70B", "meta-llama_Meta-Llama-3.1-8B-Instruct": "Llama 3.1 8B", "mistralai_Mistral-7B-Instruct-v0.3": "Mistral 7B v0.3", "mistralai_Mistral-Nemo-Instruct-2407": "Mistral NeMo 12B", "mistralai_Mixtral-8x7B-Instruct-v0.1": "Mixtral 8x7B", "utter-project_EuroLLM-1.7B-Instruct": "EuroLLM 1.7B"};
+
+function getMetricLabel(metric) {
+  return METRIC_LABELS[metric] || metric;
+}
+
+function getModelLabel(model_id) {
+  return MODEL_LABELS[model_id] || model_id;
+}
+
+// Sort model IDs according to order in MODEL_LABELS
+function orderModels(models) {
+  const modelOrder = Object.keys(MODEL_LABELS).reduce((order, model, idx) => {
+    order[model] = idx;
+    return order;
+  }, {});
+  return models.sort((a, b) => (modelOrder[a] ?? Infinity) - (modelOrder[b] ?? Infinity));
+}
+
+/****************************************************
+ * 2) Chart.js Setup & Dataset Creation for Step 3
+ ****************************************************/
+const metrics = [
+  "p_correct",
+  "p_correct_total",
+  "p_na"
+];
+const metricDisplayNames = metrics.map(metric => getMetricLabel(metric));
+let activeMetrics = metrics.map(() => true);
+
+const color_map = {
+  "0": "#A48D79",
+  "0b": "#615142",
+  "3": "#BC99EB",
+  "3b": "#6a00cc",
+  "0c": "#f5dd90",
+  "4": "#eabb1f"
+};
+
+Chart.register({
+  id: 'modelNamePlugin',
+  afterDraw: (chart) => {
+    const ctx = chart.ctx;
+    ctx.save();
+    const modelName = chart.config.options.modelName || '';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.fillStyle = 'black';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    const x = chart.chartArea.left;
+    const y = chart.chartArea.top - 5;
+    ctx.fillText(modelName, x, y);
+    ctx.restore();
+  }
+});
+
+function createDatasets(rows) {
+  const datasets = rows.map(row => {
+    let shotVariant = "";
+    // Zuordnung der promptType zu unseren Kürzeln:
+    if (row.prompt_type.includes("0-dates")) {
+      shotVariant = "0b";
+    } else if (row.prompt_type.includes("0-verify")) {
+      shotVariant = "0c";
+    } else if (row.prompt_type.includes("3-dates")) {
+      shotVariant = "3b";
+    } else if (row.prompt_type.includes("4-verify")) {
+      shotVariant = "4";
+    } else if (row.prompt_type.includes("0")) {
+      shotVariant = "0";
+    } else if (row.prompt_type.includes("3")) {
+      shotVariant = "3";
+    } else if (row.prompt_type.includes("levenshtein-regex")) {
+      shotVariant = "0c"; // Levenshtein Regex
+    } else {
+      shotVariant = row.prompt_type; // Fallback
+    }
+    const data = metrics.map(metric => parseFloat(row[metric]));
+    return {
+      label: row.prompt_type,
+      shot: shotVariant,
+      data: data,
+      originalData: data,
+      backgroundColor: (color_map[shotVariant] ? color_map[shotVariant] : '#A48D79')
+    };
+  });
+
+  return datasets.sort((a, b) => {
+    const order = { "0": 0, "0b": 1, "3": 2, "3b": 3, "0c": 4, "4": 5 };
+    return (order[a.shot] ?? 999) - (order[b.shot] ?? 999);
+  });
+}
+
+function updateChartMetrics(chart) {
+  const newLabels = metrics
+    .filter((_, i) => activeMetrics[i])
+    .map(metric => getMetricLabel(metric));
+  chart.data.labels = newLabels;
+  chart.data.datasets.forEach(ds => {
+    ds.data = ds.originalData.filter((_, i) => activeMetrics[i]);
+  });
+  chart.update();
+}
+
+function createChart(canvasID, modelName, rows) {
+  const datasets = createDatasets(rows);
+  return new Chart(document.getElementById(canvasID), {
+    type: 'bar',
+    data: {
+      labels: metricDisplayNames,
+      datasets: datasets
+    },
+    options: {
+      modelName: modelName,
+      layout: {
+        padding: {
+          left: 20,
+          top: 25,
+          right: 5,
+          bottom: 5
+        }
+      },
+      indexAxis: 'y',
+      scales: {
+        x: {
+          min: 0,
+          max: 1,
+          beginAtZero: true
+        },
+        y: {
+          ticks: {
+            padding: 5,
+            font: { size: 11 }
+          }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          displayColors: true,
+          callbacks: {
+            title: function(tooltipItems) {
+              const ds = tooltipItems[0].chart.data.datasets[tooltipItems[0].datasetIndex];
+              let base = "";
+              let suffix = "";
+              if (ds.shot.endsWith("b")) {
+                base = ds.shot.slice(0, -1);
+                suffix = " (with regex)";
+              } else if (ds.shot.endsWith("c")) {
+                base = ds.shot.slice(0, -1);
+                suffix = " - filter & verify";
+              } else {
+                base = ds.shot;
+                if(ds.shot === "4") {
+                  suffix = " - filter & verify";
+                }
+              }
+              return base + " shot" + suffix;
+            }
+          }
+        }
+      },
+      maintainAspectRatio: false,
+      devicePixelRatio: 2
+    }
+  });
+}
+    /****************************************************
+     * 4) Build the Page and Models Legend Layout
+     ****************************************************/
+    function measureTextWidth(text, font) {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      context.font = font || '14px Arial, Helvetica, sans-serif';
+      const metrics = context.measureText(text);
+      return metrics.width;
+    }
+
+    function createModelLegendColumns(uniqueModels, columnsCount) {
+      const modelsLegend = document.getElementById("models-legend");
+      modelsLegend.innerHTML = '<span class="legend-heading">Models:</span>';
+
+      // Group models into columns
+      const modelsByColumn = Array(columnsCount).fill().map(() => []);
+      const columnWidths = Array(columnsCount).fill(0);
+
+      // Find the longest model name in each column to determine width
+      uniqueModels.forEach((model, index) => {
+        const colIndex = index % columnsCount;
+        modelsByColumn[colIndex].push({ model, label: getModelLabel(model) });
+        const labelWidth = measureTextWidth(getModelLabel(model));
+        if (labelWidth > columnWidths[colIndex]) {
+          columnWidths[colIndex] = labelWidth;
+        }
+      });
+
+      // Create columns with items
+      modelsByColumn.forEach((models, colIndex) => {
+        if (models.length === 0) return;
+        const column = document.createElement("div");
+        column.classList.add("models-column");
+        const columnWidth = columnWidths[colIndex] + 10;
+        column.style.width = `${columnWidth}px`;
+        column.style.marginRight = "10px";
+
+        models.forEach(({ model, label }) => {
+          const item = document.createElement("span");
+          item.classList.add("legend-item", "model");
+          item.textContent = label;
+          item.dataset.modelName = model;
+          item.addEventListener('click', () => {
+            const gridItem = document.getElementById("container_" + model);
+            if (gridItem.style.display === "none") {
+              gridItem.style.display = "block";
+              item.classList.remove("inactive");
+            } else {
+              gridItem.style.display = "none";
+              item.classList.add("inactive");
+            }
+            setTimeout(() => {
+              charts.forEach(c => c.resize());
+            }, 100);
+          });
+          column.appendChild(item);
+        });
+        modelsLegend.appendChild(column);
+      });
+    }
+
+    function updateModelsLegendLayout(uniqueModels) {
+      const gridContainer = document.getElementById("grid-container");
+      const chartWidth = 500;
+      const gap = 20;
+      const containerWidth = gridContainer.clientWidth;
+      const cols = Math.max(1, Math.floor(containerWidth / (chartWidth + gap)));
+      createModelLegendColumns(uniqueModels, cols);
+    }
+
+    const preparedData = {"data": [{"Unnamed: 0": 58, "results_file": "step3_BioMistral_BioMistral-7B__3_step2_meta-llama_Meta-Llama-3.1-8B-Instruct__0-uro-ctx_step1__6-uro", "p_correct": 0.6369426751592356, "p_correct_total": 0.6369426751592356, "p_na": 0.0, "wrong_results": "{'2014': 'Nein (Es gibt kein Erstdiagnosedatum f\u00fcr das Urothelkarzinom.)', '2000': '10/2000', '0': '04/2019', '2008': '01/2015', '2005': '06/2013', '2011': '07/2011', '2007-03': '07', '1997': 'Nein (Es gibt kein Erstdiagnosedatum f\u00fcr mCRPC, nur eines f\u00fcr das Prostatakarzinom.)', '2009-04': 'Nein (Es gibt kein Erstdiagnosedatum f\u00fcr das Prostatakarzinom.)', '2006-04': '04/2016', '2010-02': '04/2014', '2003-08': 'Nein (Es gibt kein Erstdiagnosedatum f\u00fcr das NSCLC.)', '1999-07': 'Nein (Es gibt kein Erstdiagnosedatum f\u00fcr das Prostatakarzinom.)', '2001-08': '10/2005', '1998-10': '12/2002', '2002-08': '08/2010', '2006-06': '08/2010', '2004-01': '03/2008', '2006-10': '12/2010', '2003-04': '12/2010', '2010-03': 'Nein (Es gibt kein Erstdiagnosedatum f\u00fcr das Pleuramesotheliom.)', '2006-09': 'Nein (Es gibt kein Erstdiagnosedatum zum Pleuramesotheliom.)', '2010-09': 'Nein (Es gibt kein Erstdiagnosedatum f\u00fcr das Pleuramesotheliom.)'}", "na_values": "{}", "step": 3, "model": "BioMistral_BioMistral-7B", "prompt_type": "3", "model_prev_step": "meta-llama_Meta-Llama-3.1-8B-Instruct"}, {"Unnamed: 0": 22, "results_file": "step3_LeoLM_leo-hessianai-7b-chat__3-dates_step2_meta-llama_Meta-Llama-3.1-8B-Instruct__0-uro-ctx_step1__6-uro", "p_correct": 0.5031847133757962, "p_correct_total": 0.5031847133757962, "p_na": 0.0, "wrong_results": "{'0': '04.02.2019 \\n', '2014': 'Nein \\n', '2016': 'Nein (Es gibt kein Datum zum Kolonkarzinom, nur eines f\u00fcr die COPD) \\n', '2013': 'Nein \\n', '2000': 'Nein (Es gibt kein Datum zum Metastasiertes Prostatakarzinom, nur eine Jahresangabe) \\n', '2008': '1996 \\n', '2011-06': 'Nein \\n', '2015-06': 'Nein \\n', '2005': 'Nein \\n', '2010-08': 'Nein (Es gibt kein Datum zum NSCLC, nur eines f\u00fcr das Tonsillen-Karzinom und das Prostata-Ca) \\n', '2006': '2007 \\n', '2011': 'Nein \\n', '2020': 'Nein \\n', '2007-03': 'Nein (Es gibt kein Datum zum Prostatakarzinom, nur einige Rezidive und eine Diagnose von 2007) \\n', '2004': 'Nein (Es gibt kein Datum zum Blasenkarzinom, nur eines f\u00fcr das Prostatakarzinom) \\n', '2020-06': 'Nein \\n', '2012': '13.07.2013 \\n', '1997': 'Nein \\n', '2011-01': '03/07 \\n', '2005-06': 'Nein (Es gibt kein Datum zum gro\u00dfzelligen B-Zell-NHL, nur eines f\u00fcr das Tonsillen-Karzinom) \\n', '2009-04': 'Nein (Es gibt kein Datum zum Prostata-Ca, nur eine allgemeine Erw\u00e4hnung der Diagnose in Zeile 4) \\n', '2014-04': 'Nein (Es gibt kein Datum zum NSCLC, nur eines f\u00fcr das gering differenzierte Plattenepithel-Karzinom und das Tonsillen-Karzinom) \\n', '2006-04': 'Nein (Es gibt kein Datum zum NHL, nur eines f\u00fcr das Prostatakarzinom und das Plattenepithel-Karzinom) \\n', '2010-02': 'Nein (Es gibt kein Datum zum Prostata-Ca, nur eines f\u00fcr das gering differenzierte Plattenepithel-Karzinom) \\n', '2003-08': 'Nein (Es gibt kein Datum zum NSCLC, nur eines f\u00fcr das Tonsillen-Karzinom) \\n', '1995-08': 'Nein (Es gibt kein Datum zum gro\u00dfzelligen B-Zell-NHL, nur eines f\u00fcr das Tonsillen-Karzinom) \\n', '1999-07': '08/2003 \\n', '2005-10': 'Nein (Es gibt kein Datum zum NSCLC, nur eines f\u00fcr das Tonsillen-Karzinom) \\n', '2001-08': 'Nein (Es gibt kein Datum zum Prostata-Ca, nur eines f\u00fcr das gering differenzierte Plattenepithel-Karzinom) \\n', '2002-12': 'Nein (Es gibt kein Datum zum gro\u00dfzelligen B-Zell-NHL, nur eines f\u00fcr das Prostatakarzinom) \\n', '1998-10': 'Nein (Es gibt kein Datum zum Prostata-Ca, nur eines f\u00fcr das Tonsillen-Karzinom) \\n', '2002-08': 'Nein (Es gibt kein Datum zum B-Zell-NHL, nur eines f\u00fcr das Plattenepithel-Karzinom und das Tonsillen-Karzinom) \\n', '2006-06': 'Nein (Es gibt kein Datum zum Tonsillen-Karzinom, nur eines f\u00fcr das gering differenzierte Plattenepithel-Karzinom und das Prostata-Ca) \\n', '2008-03': 'Nein (Es gibt kein Datum zum NSCLC, nur eines f\u00fcr das Plattenepithelkarzinom) \\n', '2000-03': 'Nein (Es gibt kein Datum zum gro\u00dfzelligen B-Zell-NHL, nur eines f\u00fcr das Prostatakarzinom und das Tonsillenkarzinom) \\n', '2004-01': 'Nein (Es gibt kein Datum zum Prostatakarzinom, nur eine allgemeine Beschreibung im Text) \\n', '2010-12': 'Nein (Es gibt kein Datum zum NSCLC, nur eines f\u00fcr das gering differenzierte Plattenepithelkarzinom) \\n', '2006-10': 'Nein (Es gibt kein Datum zum Tonsillenkarzinom, nur eines f\u00fcr das Prostatakarzinom) \\n', '2003-04': 'Nein (Es gibt kein Datum zum Prostatakarzinom, nur eines f\u00fcr das Tonsillenkarzinom und das gering differenzierte Plattenepithelkarzinom) \\n', '2010-03': 'Nein \\n', '2006-09': 'Nein \\n', '2010-09': 'Nein \\n', '2010-01': 'Nein (Es gibt kein Datum zum Urothel-Karzinom der Harnblase, nur eine Jahresangabe) \\n', '1996': 'Nein (Es gibt kein Datum zum Prostatakarzinom, nur eines zur Harnblasen-Krebserkrankung) \\n', '2001-05': 'Nein (Es gibt kein Datum zum Urothelkarzinom, nur eines f\u00fcr die Harnblasen- und Prostatakarzinome) \\n', '1984': 'Nein \\n'}", "na_values": "{}", "step": 3, "model": "LeoLM_leo-hessianai-7b-chat", "prompt_type": "3-dates", "model_prev_step": "meta-llama_Meta-Llama-3.1-8B-Instruct"}, {"Unnamed: 0": 123, "results_file": "step3_VAGOsolutions_Llama-3.1-SauerkrautLM-8b-Instruct__4-verify_step2_meta-llama_Meta-Llama-3.1-8B-Instruct__0-uro-ctx_step1__6-uro", "p_correct": 0.8439716312056738, "p_correct_total": 0.8095238095238095, "p_na": 0.0408163265306122, "wrong_results": "{'2000': 'Nein. Die Datumsangabe \"2000\" bezieht sich auf das Tumorstadium, nicht auf die Erstdiagnose der Tumorerkrankung. Die Datumsangabe \"Tumorstadium  + Nein. Die Datumsangabe \"10/2000\" bezieht sich auf eine palliative TUR-P (Transurethrale Resektion der Prostata), nicht auf die Erstdiagnose des Metastasi', '2011-06': 'Nein. Die Datumsangabe \"6/11\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms, aber es ist \"ausw\u00e4rts diagnostiziert\", was bedeutet, dass', '2010-08': 'Nein. Die Datumsangabe \"08/2010\" bezieht sich auf das Blasenkarzinom, aber es handelt sich nicht um das Erstdiagnosedatum. Es ist wahrscheinlich das Datum der + Nein. Die Datumsangabe \"11/10\" bezieht sich auf einen Wechsel der NST-Einlage, nicht auf die Erstdiagnose des Blasenkarzinoms. Die Erstdiagnose des', '0': 'Nein + Nein. Die Datumsangabe \"05/2011\" bezieht sich auf ein Rezidiv des Prostatakarzinoms (PCA) und nicht auf die Erstdiagnose. Es gibt jedoch eine Datums + Nein. Die Datumsangabe \"2007\" bezieht sich auf eine Radiationstherapie, die aufgrund eines PSA-Progressions erfolgte, aber nicht direkt auf die Erstdiagnose des Prostata + Nein. Die Datumsangabe \"06/2011\" bezieht sich auf eine Behandlung des Prostatakarzinoms (PCA), nicht auf die Erstdiagnose. Es handelt sich um ein Lokal + Ja. Die Datumsangabe \"01/2004\" bezieht sich auf die Prostatektomie, die als Erstdiagnose des Prostatakarzinoms (PCA) interpretiert werden kann. Es ist anz', '2011-01': 'Nein. Es gibt zwei Datumsangaben, die sich auf das Prostatakarzinom beziehen: \"01/11\" und \"01/2011\". Da \"01/11\" wahrscheinlich ein Fehler ist und + Nein. Die Datumsangabe \"11/2014\" bezieht sich auf die Therapie des Prostata-Ca, nicht auf die Erstdiagnose. Die Erstdiagnose des Prostata-C + Nein. Es gibt zwei Datumsangaben f\u00fcr das Prostatakarzinom, \"01/2011\" und \"03/2015\". Die erste Datumsangabe \"01/2011\" bezieht sich auf die + Nein. Es gibt zwei Datumsangaben f\u00fcr das Prostatakarzinom: \"01/2011\" und \"03/2015\". Die Datumsangabe \"01/2011\" bezieht sich auf die Er', '2007-03': 'Nein. Es gibt mehrere Datumsangaben im Text, aber \"3/07\" bezieht sich auf die Erstdiagnose des Gro\u00dfzelliges B-Zell-NHL vom zentroblastischen Typ,', '2014-04': 'Nein. Es gibt mehrere Tumorerkrankungen im Text, aber die Datumsangabe \"04/2014\" bezieht sich auf die Diagnose des NSCLC, aber es handelt sich um eine Di + Nein. Es gibt mehrere Tumorerkrankungen im Text, aber die Datumsangabe \"2014\" bezieht sich auf die Erstdiagnose des Gering differenzierten Plattenepithel-K', '2003-08': 'Nein. Es gibt zwei Datumsangaben, die mit \"08/2003\" \u00fcbereinstimmen, eine f\u00fcr die Diagnose des NSCLC und eine f\u00fcr die Kombination aus Radio-Chemotherapie. + Nein. Es gibt eine Datumsangabe \"08/2003\" f\u00fcr die Erstdiagnose des NSCLC, die explizit mit \"ED\" gekennzeichnet ist. Es ist jedoch zu beachten, dass es', '1999-07': 'Nein. Es gibt zwei Datumsangaben f\u00fcr das Jahr 1999, eine f\u00fcr das Tonsillenkarzinom (07/1999) und eine f\u00fcr das Prostata-Ca (07/1999). Es ist + Nein. Es gibt zwei Datumsangaben f\u00fcr Prostata-Ca, \"07/1999\" und \"10/99\". Die Datumsangabe \"07/1999\" ist als Erstdiagnosedatum (ED', '2005-10': 'Nein. Es gibt zwei Datumsangaben, die mit \"ED\" gekennzeichnet sind, n\u00e4mlich \"10/2005\" und \"08/2001\". \"10/2005\" bezieht sich auf die Er + Nein. Die Datumsangabe \"2006\" bezieht sich auf eine Kombination aus Radio- und Chemotherapie, die bis Februar 2006 durchgef\u00fchrt wurde, und nicht auf die Erstdiagn', '2001-08': 'Nein. Es gibt zwei Datumsangaben f\u00fcr das Jahr 2001, die sich auf Tumorerkrankungen beziehen. Die Datumsangabe \"08/2001\" bezieht sich auf das Tonsill + Nein. Es gibt zwei Datumsangaben f\u00fcr Prostata-Ca, \"12/01\" und \"08/2001\". \"12/01\" bezieht sich auf eine Therapie des Prostata-Ca,', '2002-12': 'Nein. Es gibt zwei Datumsangaben, die mit \"ED\" gekennzeichnet sind: \"12/2002\" f\u00fcr das Gering differenzierte Plattenepithel-Karzinom und \"12/94\" + Nein. Die Datumsangabe \"2003\" bezieht sich auf eine Kombination aus Radio- und Chemotherapie, nicht auf die Erstdiagnose des NSCLC. Die Erstdiagnose des', '1998-10': 'Nein. Es gibt zwei Datumsangaben f\u00fcr Prostata-Ca, \"10/1998\" und \"ED 10/1998\". Die Datumsangabe \"10/1998\" bezieht sich auf das T + Nein. Es gibt zwei Datumsangaben, die sich auf Prostata-Ca beziehen: \"10/1998\" und \"2/99\". Die Datumsangabe \"2/99\" bezieht sich auf', '2008-03': 'Nein. Die Datumsangabe \"03/2008\" bezieht sich auf die Diagnose des NSCLC, aber es handelt sich um eine Diagnose im Stadium IIIA, also nicht die Erstdiagn + Nein. Es gibt zwar eine Datumsangabe \"03/2008\", aber diese bezieht sich auf die Erstdiagnose eines anderen Tumors, n\u00e4mlich des Gering differenzierten Plattenepith', '2004-01': 'Nein. Es gibt mehrere Tumorerkrankungen im Text, aber die Datumsangabe \"01/04\" bezieht sich auf das Tonsillenkarzinom und das Prostatakarzinom. Es + Nein. Es gibt zwei Datumsangaben, die sich auf das Jahr 2004 beziehen, n\u00e4mlich \"01/04\" und \"03-5/04\". Die erste Datumsangabe \"01/04\"', '2010-12': 'Nein. Die Datumsangabe \"12/2010\" bezieht sich auf die Diagnose des NSCLC, aber es handelt sich um eine Diagnose, die nach der Erstdiagnose erfolgte. + Nein. Die Datumsangabe \"2011\" bezieht sich auf eine Kombination von Radio-Chemotherapie, nicht auf die Erstdiagnose des NSCLC. Die Erstdiagnose des NS', '2008': 'Nein. Die Datumsangabe \"2008\" bezieht sich auf den Zustand nach einer transurethralen Resektion, nicht auf die Erstdiagnose des Prostata-Karzinoms. Es ist + Nein. Die Datumsangabe \"1996\" bezieht sich auf das Bronchial-Karzinom, nicht auf das Prostata-Karzinom. + Nein. Die Datumsangabe \"07/12\" bezieht sich auf eine Herzerkrankung, nicht auf die Erstdiagnose des Prostata-Karzinoms. Es gibt auch keine Angabe, dass', '1984': 'Nein. Die Datumsangabe \"1984\" bezieht sich auf eine Oberlappenresektion rechts wegen Bronchial-Karzinom, nicht auf die Erstdiagnose der Tumorerkrankung. + Nein. Die Datumsangabe \"12/00\" bezieht sich auf eine Nebendiagnose, n\u00e4mlich eine 2-Gef\u00e4\u00df-coronare Herzerkrankung, und nicht auf die Erstdiagn + Nein. Die Datumsangabe \"1996\" bezieht sich auf das Prostata-Karzinom, nicht auf das Bronchial-Karzinom.', '1996': 'Nein. Die Datumsangabe \"1996\" bezieht sich auf eine Prostata-Karzinom-Diagnose, die nach einer transurethralen Resektion bestand. Es handelt sich nicht um + Nein. Die Datumsangabe \"1984\" bezieht sich auf ein anderes Ereignis, n\u00e4mlich die Oberlappenresektion rechts wegen Bronchial-Karzinom. Es gibt keine Hinweise darauf + Nein. Die Datumsangabe \"12/00\" bezieht sich auf eine Nebendiagnose, n\u00e4mlich eine 2-Gef\u00e4\u00df-coronare Herzerkrankung, und nicht auf die Erstdiagn + Nein. Die Datumsangabe \"06/04\" bezieht sich auf einen Harnwegsinfekt, nicht auf die Erstdiagnose des Prostata-Karzinoms. Im Text wird das Prostata', '2013-11': 'Nein. Es gibt zwei Datumsangaben, \"11/2013\", aber nur eine davon bezieht sich auf die Erstdiagnose des Prostata-Karzinoms. Die Datumsangabe \"11/201'}", "na_values": "{'Ja. Die Datumsangabe \"2004\" ist als Erstdiagnosedatum (ED) f\u00fcr das Blasenkarzinom angegeben. + Nein. Es gibt ein Datum f\u00fcr das Blasenkarzinom, aber es ist 2004, nicht 3/2007. 3/2007 ist das Erstdiagnosedatum f\u00fcr das Prostatakarzin + Ja. Die Datumsangabe \"2004\" ist eindeutig als Erstdiagnosedatum (ED) f\u00fcr das Blasenkarzinom angegeben.': 1, 'Ja. Die Datumsangabe \"2013\" wird direkt mit der Diagnose \"metastasiertes Adenokarzinom der Prostata\" in Verbindung gebracht und ist als Erstdiagnosedatum ( + Ja. Die Datumsangabe \"2013\" bezieht sich auf die Erstdiagnose des metastasierten Adenokarzinoms der Prostata.': 1, 'Ja. Die Datumsangabe \"2014\" ist direkt mit der Diagnose \"metastasiertes Adenokarzinom der Prostata\" verkn\u00fcpft und wird als Erstdiagnosedatum (ED + Nein. Die Datumsangabe \"04/2020\" bezieht sich auf eine Diagnose, die nicht direkt mit der Erstdiagnose des metastasierten Adenokarzinoms der Prostata zusammenh + Ja. Die Datumsangabe \"2014\" ist als Erstdiagnosedatum (ED) f\u00fcr das metastasierte Adenokarzinom der Prostata angegeben.': 1, 'Ja. Die Datumsangabe \"2016\" wird direkt mit der Diagnose \"metastasiertes Adenokarzinom der Prostata\" in Verbindung gebracht und ist als Erstdiagnosedatum ( + Ja. Die Datumsangabe \"2016\" ist als Erstdiagnosedatum (ED) f\u00fcr das metastasierte Adenokarzinom der Prostata angegeben.': 1, 'Nein. Die Datumsangabe \"17.09.2017\" bezieht sich auf eine Oss\u00e4re Metastase, nicht auf die Erstdiagnose des HRPC. Es gibt jedoch eine Erw\u00e4hnung von + Nein. Die Datumsangabe \"28.08.2017\" bezieht sich auf eine Dekompensierte Harntransportst\u00f6rung, die auf ein Lokalrezidiv eines HRPC zur\u00fcckzuf\u00fchren ist + Nein. Die Datumsangabe \"10/2015\" bezieht sich auf ein Rezidiv der Prostatakrebs-Erkrankung (PCA) und nicht auf die Erstdiagnose. Es gibt + Ja. Die Datumsangabe \"2012\" bezieht sich auf die Radiatio bei einem PSA-Progress, was wahrscheinlich auf die Erstdiagnose des PCA (Prostatakarzinoms) hinweist, + Nein. Die Datumsangabe \"11/2015\" bezieht sich auf eine Behandlung des Lokalrezidivs eines HRPC (Harnr\u00f6hrenkarzinoms der Prostata), nicht auf die + Ja. Die Datumsangabe \"06/2008\" bezieht sich auf die Prostatektomie, die als Behandlung f\u00fcr das Prostatakarzinom (PCA) durchgef\u00fchrt wurde. Es ist anzun': 1, 'Nein. Die Datumsangabe \"27.02.2006\" bezieht sich auf eine Plattenosteosynthese bei einer Fraktur einer oss\u00e4ren Metastase, nicht auf die Erstdiagnose des HR + Nein. Die Datumsangabe \"02.01.2006\" bezieht sich auf einen letzten DJ-Wechsel, der bei einem Lokalrezidiv eines HRPC stattfand, aber nicht auf die Erstdi + Ja. Die Datumsangabe \"02/2004\" bezieht sich auf die Erstdiagnose des Rezidivs einer Prostatakarzinom-Erkrankung (PCA), da es sich um ein + Nein. Die Datumsangabe \"2004\" bezieht sich auf eine Radiatio (Strahlentherapie) bei einem PSA-Progress, nicht auf die Erstdiagnose der Tumorerkrankung \" + Ja. Die Datumsangabe \"03/2000\" bezieht sich auf die Erstdiagnose eines Lokalrezidivs eines HRPC (Hormonrezeptorpositiven Prostatakarzinoms), + Ja. Die Datumsangabe \"10/1996\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"PCA\" (Prostatakarzinom), da es sich um die Zeit der Pro + Nein. Die Datumsangabe \"02/2004\" bezieht sich auf eine Operation bei einem Rezidiv des Prostatakarzinoms (PCA) mit Rektumstenose, nicht auf die Erstdi + Nein. Die Datumsangabe \"2004\" bezieht sich auf eine Radiatio (Strahlentherapie) bei einem PSA-Progress, nicht auf die Erstdiagnose der Tumorerkrankung \" + Nein. Die Datumsangabe \"03/2000\" bezieht sich auf eine Behandlung des Lokalrezidivs eines HRPC (Harnr\u00f6hrenkarzinoms), nicht auf die Erstdiagn + Ja. Die Datumsangabe \"10/1996\" bezieht sich auf die retropubische Prostatektomie, die als erste Ma\u00dfnahme zur Behandlung des Prostatakarzinoms (PCA) durch': 1}", "step": 3, "model": "VAGOsolutions_Llama-3.1-SauerkrautLM-8b-Instruct", "prompt_type": "4-verify", "model_prev_step": "meta-llama_Meta-Llama-3.1-8B-Instruct"}, {"Unnamed: 0": 30, "results_file": "step3_levenshtein-regex__regex-match-same-line_step2_meta-llama_Meta-Llama-3.1-8B-Instruct__0-uro-ctx_step1__6-uro", "p_correct": 0.7961783439490446, "p_correct_total": 0.7961783439490446, "p_na": 0.0, "wrong_results": "{'2000': 'Nein', '0': '03/2012', '1997': 'Nein', '2005-06': 'Nein', '2009-04': 'Nein', '2014-04': 'Nein', '2003-08': 'Nein', '2005-10': 'Nein', '2002-12': 'Nein', '2010-08': 'Nein', '2008-03': 'Nein', '2010-12': 'Nein', '2010-03': 'Nein', '2007-05': 'Nein', '2015-06': 'Nein', '2010-01': 'Nein', '2001-05': 'Nein'}", "na_values": "{}", "step": 3, "model": "levenshtein-regex", "prompt_type": "regex-match-same-line", "model_prev_step": "meta-llama_Meta-Llama-3.1-8B-Instruct"}, {"Unnamed: 0": 45, "results_file": "step3_meta-llama_Llama-3.2-1B-Instruct__0-verify_step2_meta-llama_Meta-Llama-3.1-8B-Instruct__0-uro-ctx_step1__6-uro", "p_correct": 0.4452054794520548, "p_correct_total": 0.4421768707482993, "p_na": 0.0068027210884353, "wrong_results": "{'2002': 'Nein.', '2014': 'Nein.', '2016': 'Nein.', '2013': 'Nein. + Nein.', '2000': 'Nein.', '0': 'Ja', '2008': 'Nein. + Nein. + Nein.', '2011-06': 'Nein.', '2013-08': 'Nein. + Nein.', '2015-06': 'Nein.', '2005': 'Nein.', '2010-08': 'Nein. + Nein.', '1997': 'Nein. + Nein. + Nein.', '1998': 'Nein. + Nein. + Nein.', '2006': 'Nein.', '2011': 'Nein. + Nein. + Nein.', '2020': 'Nein', '2004': 'Nein. + Nein. + Nein.', '2007-03': 'Nein.', '2020-06': 'Nein. + Nein.', '2019': 'Nein. + Nein.', '2018': 'Nein.', '2012': 'Nein. + Nein.', '2011-01': 'Nein. + Nein. + Nein. + Nein.', '2009-04': 'Nein. + Nein.', '2005-06': 'Nein.', '2010-02': 'Nein. + Nein.', '2014-04': 'Nein. + Nein.', '2006-04': 'Nein.', '1999-07': 'Nein. + Nein.', '2003-08': 'Nein. + Nein.', '1995-08': 'Nein.', '2005-10': 'Nein. + Nein.', '2001-08': 'Nein. + Nein.', '1998-10': 'Nein. + Nein.', '2002-12': 'Nein.', '2006-06': 'Nein. + Nein.', '2002-08': 'Nein.', '2004-01': 'Nein. + Nein.', '2008-03': 'Nein. + Nein.', '2000-03': 'Nein.', '2006-10': 'Nein.', '2010-12': 'Nein. + Nein.', '2003-04': 'Nein. + Nein.', '2010-03': 'Nein.', '2007-05': 'Nein.', '2006-09': 'Nein.', '2010-09': 'Nein.', '2007-10': 'Nein.', '2010-01': 'Nein.', '1996': 'Nein. + Nein. + Nein. + Nein.', '1984': 'Nein. + Nein. + Nein.', '2001-05': 'Nein.', '2013-11': 'Nein.', '2003-01': 'Nein.'}", "na_values": "{'Ja + Ja': 1}", "step": 3, "model": "meta-llama_Llama-3.2-1B-Instruct", "prompt_type": "0-verify", "model_prev_step": "meta-llama_Meta-Llama-3.1-8B-Instruct"}, {"Unnamed: 0": 128, "results_file": "step3_meta-llama_Llama-3.2-3B-Instruct__0-verify_step2_meta-llama_Meta-Llama-3.1-8B-Instruct__0-uro-ctx_step1__6-uro", "p_correct": 0.6382978723404256, "p_correct_total": 0.6122448979591837, "p_na": 0.0408163265306122, "wrong_results": "{'2000': 'Nein.', '2008': 'Nein. + Ja. + Nein.', '0': 'Ja.', '2015-06': 'Nein. + Nein.', '2005': 'Nein. + Nein.', '2014': 'Nein.', '1997': 'Nein.', '2011': 'Nein. + Ja. + Nein.', '2020': 'Nein.', '2004': 'Nein. + Nein. + Nein.', '2016': 'Nein.', '2007-03': 'Nein. + Nein. + Nein.', '2019': 'Nein. + Nein.', '2012': 'Nein. + Nein.', '2006': 'Nein.', '2009-04': 'Nein.', '2005-06': 'Nein. + Nein.', '2010-02': 'Nein. + Nein.', '2014-04': 'Nein. + Nein.', '2006-04': 'Nein.', '1999-07': 'Nein. + Nein.', '2003-08': 'Nein. + Nein.', '1995-08': 'Nein.', '1998-10': 'Nein.', '2002-12': 'Nein.', '2002-08': 'Nein.', '2004-01': 'Nein. + Nein.', '2000-03': 'Nein.', '2006-10': 'Nein.', '2003-04': 'Nein. + Nein.', '2010-03': 'Nein.', '2006-09': 'Nein.', '1996': 'Nein. + Nein. + Nein. + Nein.', '1984': 'Nein. + Nein. + Nein.'}", "na_values": "{'Ja. + Ja. + Nein.': 3, 'Ja. + Ja.': 1, 'Ja. + Ja. + Ja.': 1, 'Ja. + Ja. + Nein. + Nein.': 1}", "step": 3, "model": "meta-llama_Llama-3.2-3B-Instruct", "prompt_type": "0-verify", "model_prev_step": "meta-llama_Meta-Llama-3.1-8B-Instruct"}, {"Unnamed: 0": 99, "results_file": "step3_meta-llama_Meta-Llama-3.1-70B-Instruct__3-dates_step2_meta-llama_Meta-Llama-3.1-8B-Instruct__0-uro-ctx_step1__6-uro", "p_correct": 0.8343949044585988, "p_correct_total": 0.8343949044585988, "p_na": 0.0, "wrong_results": "{'0': '04.02.2019', '2008': 'Nein', '1997': 'Nein', '2009-04': '06/2013', '2006-04': '04/2014', '2010-02': 'Nein', '2002-08': '08/2010', '2004-01': '03/2008', '2003-04': '12/2010', '1984': 'Nein', '1996': '5/01'}", "na_values": "{}", "step": 3, "model": "meta-llama_Meta-Llama-3.1-70B-Instruct", "prompt_type": "3-dates", "model_prev_step": "meta-llama_Meta-Llama-3.1-8B-Instruct"}, {"Unnamed: 0": 52, "results_file": "step3_mistralai_Mistral-7B-Instruct-v0.3__3_step2_meta-llama_Meta-Llama-3.1-8B-Instruct__0-uro-ctx_step1__6-uro", "p_correct": 0.7961783439490446, "p_correct_total": 0.7961783439490446, "p_na": 0.0, "wrong_results": "{'0': '04.02.2019 (Dieses Datum ist die Operation, aber es ist auch die Erstdiagnose des Prostatakarzinoms, da es nicht anders spezifiziert wird', '2010-02': 'Nein (Es gibt kein Erstdiagnosedatum f\u00fcr das Tonsillen-Karzinom im Text.)', '2003-08': 'Nein (Es gibt kein Datum zum NSCLC, nur eines f\u00fcr das Tonsillen-Karzinom.)', '1999-07': 'Nein (Es gibt kein Erstdiagnosedatum f\u00fcr das Tonsillen-Karzinom im Text.)'}", "na_values": "{}", "step": 3, "model": "mistralai_Mistral-7B-Instruct-v0.3", "prompt_type": "3", "model_prev_step": "meta-llama_Meta-Llama-3.1-8B-Instruct"}, {"Unnamed: 0": 137, "results_file": "step3_mistralai_Mistral-Nemo-Instruct-2407__0_step2_meta-llama_Meta-Llama-3.1-8B-Instruct__0-uro-ctx_step1__6-uro", "p_correct": 0.9363057324840764, "p_correct_total": 0.9363057324840764, "p_na": 0.0, "wrong_results": "{'2000': 'Nein, es gibt keine explizite Datumsangabe zur Erstdiagnose des metastasierten Prostatakarzinoms im gegebenen Text.', '0': 'Ja, das Datum der Erstdiagnose des Prostatakarzinoms ist \"2005\".', '2005': 'Nein, es gibt keine Datumsangabe zur Erstdiagnose von \"UrothelCa\" im Text.', '2014': 'Nein, es gibt keine Datumsangabe zur Erstdiagnose von \"UrothelCa\" im Text.', '2011': 'Nein, es gibt keine explizite Datumsangabe zur Erstdiagnose der Tumorerkrankung im gegebenen Diagnosetext.', '1999-07': 'Ja, die Erstdiagnose des Prostata-Ca wurde im Juli 1999 gestellt (ED 07/1999).', '1996': 'Nein, es gibt keine explizite Datumsangabe zur Erstdiagnose des Prostata-Karzinoms im gegebenen Diagnosetext.'}", "na_values": "{}", "step": 3, "model": "mistralai_Mistral-Nemo-Instruct-2407", "prompt_type": "0", "model_prev_step": "meta-llama_Meta-Llama-3.1-8B-Instruct"}, {"Unnamed: 0": 122, "results_file": "step3_mistralai_Mixtral-8x7B-Instruct-v0.1__3-dates_step2_meta-llama_Meta-Llama-3.1-8B-Instruct__0-uro-ctx_step1__6-uro", "p_correct": 0.8580645161290322, "p_correct_total": 0.8471337579617835, "p_na": 0.0127388535031847, "wrong_results": "{'0': '01/2004', '2011-06': 'Nein (Es ist das Datum der Erstdiagnose der Metastasen, nicht des Prostatacarcinoms)'}", "na_values": "{'Die Datumsangaben beziehen sich auf Eingriffe und nicht auf die Erstdiagnose. Deshalb lautet die Antwort Nein.': 1, 'Die Erstdiagnose zur Tumordiagnose \"Oss\u00e4r metastasiertes Prostatacarcinom\" ist nicht explizit angegeben. Die erste Datumsangabe, die mit der Prostatak': 1}", "step": 3, "model": "mistralai_Mixtral-8x7B-Instruct-v0.1", "prompt_type": "3-dates", "model_prev_step": "meta-llama_Meta-Llama-3.1-8B-Instruct"}, {"Unnamed: 0": 80, "results_file": "step3_utter-project_EuroLLM-1.7B-Instruct__4-verify_step2_meta-llama_Meta-Llama-3.1-8B-Instruct__0-uro-ctx_step1__6-uro", "p_correct": 0.6875, "p_correct_total": 0.5238095238095238, "p_na": 0.238095238095238, "wrong_results": "{'0': 'Ja. Die Datumsangabe \"5/2015\" bezieht sich auf die Erstdiagnose des Prim\u00e4rtumors, der \"Oss\u00e4re metastasiertes PCA\" ist.', '2000': 'Nein. Die Datumsangabe \"2000\" bezieht sich auf die Erstdiagnose des kastrationsrefrakt\u00e4ren Prostatakarzinoms, nicht auf die Erstdiagnose der Tumorerkrankung.', '2011-06': 'Nein. Die Datumsangabe \"6/11\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms, nicht auf die Erstdiagnose der Metastasen.', '2013-08': 'Nein. Die Datumsangabe \"08/2013\" bezieht sich auf die Erstdiagnose des Kastrationsresistenten Prostatakarzinoms. Die Angabe \"ED\" ist nicht vorhanden. + Nein. Die Datumsangabe \"07/2014\" bezieht sich auf die Erstdiagnose des Kastrationsresistenten Prostatakarzinoms, nicht auf die Erstdiagnose der Tumorerkrankung.', '1997': 'Nein. Die Datumsangabe \"1997\" bezieht sich auf die Erstdiagnose des Oss\u00e4res met. Prostata-Karzinoms, nicht auf die Erstdiagnose des Blasenkarzinoms.', '2005': 'Nein. Die Datumsangabe \"2005\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"HRPC\". Die Angabe \"2005\" ist nicht explizit mit \"ED\" gekennzeichnet', '2019': 'Nein. Die Datumsangabe \"2019\" bezieht sich auf die Erstdiagnose des Oss\u00e4res metastasierten Prostatakarzinoms, nicht auf die Erstdiagnose der Tumorerkrankung selbst. + Nein. Die Datumsangabe \"05/2020\" bezieht sich auf die Erstdiagnose des Oss\u00e4res metastasierten Prostatakarzinoms, nicht auf die Erstdiagnose der Tumorerkrankung.', '2018': 'Nein. Die Datumsangabe \"2018\" bezieht sich auf die Erstdiagnose des Oss\u00e4res metastasierten Prostatakarzinoms.', '1995-08': 'Nein. Die Datumsangabe \"08/95\" bezieht sich auf die Erstdiagnose der Gro\u00dfzelligen B-Zell-Non-Hodgkin-Lymphom (GZB-NHL), nicht auf', '2005-10': 'Nein. Die Datumsangabe \"10/2005\" bezieht sich auf die Erstdiagnose des NSCLC, nicht auf die Erstdiagnose der Tumorerkrankung. + Nein. Die Datumsangabe \"2006\" bezieht sich auf die Erstdiagnose des NSCLC, nicht auf die Erstdiagnose der Tumorerkrankung.', '1998-10': 'Nein. Die Datumsangabe \"10/1998\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms, nicht auf die Erstdiagnose der Tumorerkrankung \"Prostata-Ca\". + Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose des Prostatakarzinoms bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gekennzeichnet ist.', '2006-06': 'Nein. Die Datumsangabe \"06/06\" bezieht sich auf die Erstdiagnose des Tonsillen-Karzinoms, nicht auf die Erstdiagnose der Tumorerkrankung. + Nein. Die Datumsangabe \"12/02\" bezieht sich auf die Erstdiagnose des Tonsillen-Karzinoms, nicht auf die Erstdiagnose der Tumorerkrankung.', '2010-08': 'Nein. Die Datumsangabe \"08/2010\" bezieht sich auf die Erstdiagnose des NSCLC, nicht auf die Erstdiagnose der Tumorerkrankung. + Nein. Die Datumsangabe \"2010\" bezieht sich auf die Erstdiagnose des NSCLC, nicht auf die Erstdiagnose der Tumorerkrankung.', '2002-08': 'Nein. Die Datumsangabe \"08/02\" bezieht sich auf die Erstdiagnose des Gro\u00dfzelligen B-Zell-NHL, nicht auf die Erstdiagnose der Tumorerkrankung.', '2006-10': 'Nein. Die Datumsangabe \"10/06\" bezieht sich auf die Erstdiagnose des Tonsillenkarzinoms, nicht auf die Erstdiagnose der Tumorerkrankung.', '2010-12': 'Nein. Die Datumsangabe \"12/2010\" bezieht sich auf die Erstdiagnose des NSCLC, nicht auf die Erstdiagnose der Tumorerkrankung. + Nein. Die Datumsangabe \"2011\" bezieht sich auf die Erstdiagnose des NSCLC, nicht auf die Erstdiagnose der Tumorerkrankung.', '2003-04': 'Nein. Die Datumsangabe \"04/03\" bezieht sich auf die Erstdiagnose des Tonsillenkarzinoms, nicht auf die Erstdiagnose der Tumorerkrankung. + Nein. Die Datumsangabe \"2/07\" bezieht sich auf die Erstdiagnose des Mammakarzinoms, nicht auf die Erstdiagnose der Tumorerkrankung \"Prostatakarzinom\".', '2002-12': 'Nein. Die Datumsangabe \"12/02\" bezieht sich auf die Erstdiagnose der Gro\u00dfzelligen B-Zell-NHL, nicht auf die Erstdiagnose der Tumorerkrankung.', '2010-03': 'Nein. Die Datumsangabe \"03/2010\" bezieht sich auf die Erstdiagnose des Multiplen Myeloms, nicht auf die Erstdiagnose der Tumorerkrankung.', '2007-05': 'Nein. Die Datumsangabe \"05/2007\" bezieht sich auf die Erstdiagnose des Multiplen Myeloms, nicht auf die Erstdiagnose der Tumorerkrankung.', '2015-06': 'Nein. Die Datumsangabe \"06/2015\" bezieht sich auf die Erstdiagnose des Multiplen Myeloms, nicht auf die Erstdiagnose der Tumorerkrankung.', '2005-06': 'Nein. Die Datumsangabe \"06/05\" bezieht sich auf die Erstdiagnose des Pleuramesothelioms, nicht auf die Erstdiagnose der Tumorerkrankung.', '2007-10': 'Nein. Die Datumsangabe \"10/07\" bezieht sich auf die Erstdiagnose des Hepatisch metastasierten Prostatakarzinoms.', '1996': 'Nein. Die Datumsangabe \"1996\" bezieht sich auf die Erstdiagnose des Bronchial-Karzinoms, nicht auf die Erstdiagnose der anderen Erkrankungen. + Nein. Die Datumsangabe \"07/12\" bezieht sich auf die Erstdiagnose des Bronchial-Karzinoms. + Nein. Die Datumsangabe \"2008\" bezieht sich auf die Erstdiagnose des Bronchial-Karzinoms, nicht auf die Erstdiagnose der anderen Nebendiagnosen.', '2008': 'Nein. Die Datumsangabe \"2008\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms, nicht auf die Erstdiagnose der anderen Erkrankungen. + Nein. Die Datumsangabe \"1996\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms, nicht auf die Erstdiagnose der anderen Erkrankungen. + Nein. Die Datumsangabe \"07/12\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms.', '2003-01': 'Nein. Die Datumsangabe \"01/2003\" bezieht sich auf die Erstdiagnose des Urothelkarzinoms, nicht auf die Erstdiagnose der Tumorerkrankung.'}", "na_values": "{'Ja. Die Datumsangabe \"01/11\" bezieht sich auf die Erstdiagnose des Tonsillen-Karzinoms. + Ja. Die Datumsangabe \"7/07\" bezieht sich auf die Erstdiagnose des Tonsillen-Karzinoms. + Ja. Die Datumsangabe \"5/11\" bezieht sich auf die Erstdiagnose des Tonsillen-Karzinoms.': 1, 'Ja. Die Datumsangabe \"01/2011\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"11/2014\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"5/11\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"03/2015\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms.': 1, 'Ja. Die Datumsangabe \"06/2015\" bezieht sich auf die Erstdiagnose des Blasencarcinoms. + Ja. Die Datumsangabe \"09/2014\" bezieht sich auf die Erstdiagnose des Blasencarcinoms.': 1, 'Ja. Die Datumsangabe \"06/2020\" bezieht sich auf die Erstdiagnose des Anaplastischen Prostatakarzinoms. + Ja. Die Datumsangabe \"2033\" bezieht sich auf die Erstdiagnose des Anaplastischen Prostatakarzinoms.': 1, 'Ja. Die Datumsangabe \"17.09.2017\" bezieht sich auf die Erstdiagnose des HRPC. + Ja. Die Datumsangabe \"28.08.2017\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Hodgkin Lymphom\" (HRPC). + Ja. Die Datumsangabe \"10/2015\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Prostatakarzinom\" (PCA). + Ja. Die Datumsangabe \"2012\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"PCA\". + Ja. Die Datumsangabe \"11/2015\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"PCA\" (Prostate Cancer Aggressive). + Ja. Die Datumsangabe \"06/2008\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Prostatakarzinom\" (PCA).': 1, 'Ja. Die Datumsangabe \"1984\" bezieht sich auf die Erstdiagnose des Bronchial-Karzinoms. + Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose des Bronchial-Karzinoms bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist. + Ja. Die Datumsangabe \"1996\" bezieht sich auf die Erstdiagnose des Bronchial-Karzinoms.': 1, 'Ja. Die Datumsangabe \"1988\" bezieht sich auf die Erstdiagnose des Oss\u00e4res metastasierten ProstataCa. + Ja. Die Datumsangabe \"11/2005\" bezieht sich auf die Erstdiagnose des Oss\u00e4res metastasierten ProstataCa.': 1, 'Ja. Die Datumsangabe \"1996\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"1984\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose des Prostatakarzinoms bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist. + Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose des Prostatakarzinoms bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist.': 1, 'Ja. Die Datumsangabe \"1997\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Oss\u00e4r metastasiertes ProstataCa\". + Ja. Die Datumsangabe \"04/2015\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Oss\u00e4r metastasiertes ProstataCa\".': 1, 'Ja. Die Datumsangabe \"1997\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"1999\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"1999\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"mCRPC\" (metastatic castration-resistant prostate cancer).': 1, 'Ja. Die Datumsangabe \"1998\" bezieht sich auf die Erstdiagnose des hormonabh\u00e4ngigen Prostatakarzinoms. + Ja. Die Datumsangabe \"10/2005\" bezieht sich auf die Erstdiagnose des hormonabh\u00e4ngigen Prostatakarzinoms. + Ja. Die Datumsangabe \"18.11.2005\" bezieht sich auf die Erstdiagnose des hormonabh\u00e4ngigen Prostatakarzinoms.': 1, 'Ja. Die Datumsangabe \"2002\" bezieht sich auf die Erstdiagnose des Oss\u00e4res metastasierten Prostatacarcinoms. + Ja. Die Datumsangabe \"09/2014\" bezieht sich auf die Erstdiagnose des Oss\u00e4res metastasierten Prostatacarcinoms.': 1, 'Ja. Die Datumsangabe \"2004\" bezieht sich auf die Erstdiagnose des Blasenkarzinoms. + Ja. Die Datumsangabe \"3/2007\" bezieht sich auf die Erstdiagnose des Blasenkarzinoms. + Ja. Die Datumsangabe \"2010\" bezieht sich auf die Erstdiagnose des Blasenkarzinoms.': 1, 'Ja. Die Datumsangabe \"2005\" bezieht sich auf die Erstdiagnose des hormonrefrakt\u00e4ren Prostatakarzinoms. + Ja. Die Datumsangabe \"29.01.2014\" bezieht sich auf die Erstdiagnose des hormonrefrakt\u00e4ren Prostatakarzinoms.': 1, 'Ja. Die Datumsangabe \"2006\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"HRPC\". + Ja. Die Datumsangabe \"11/2013\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"HRPC\". + Ja. Die Datumsangabe \"06.12.2013\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"HRPC\".': 1, 'Ja. Die Datumsangabe \"2008\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Prostata Ca\". + Ja. Die Datumsangabe \"2010\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Prostata Ca\".': 1, 'Ja. Die Datumsangabe \"2008\" bezieht sich auf die Erstdiagnose des hormonrefrakt\u00e4ren Prostatakarzinoms. + Ja. Die Datumsangabe \"13.05.2016\" bezieht sich auf die Erstdiagnose des hormonrefrakt\u00e4ren Prostatakarzinoms.': 1, 'Ja. Die Datumsangabe \"2012\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"01/2006\" bezieht sich auf die Erstdiagnose des Prostata-Karzinoms.': 1, 'Ja. Die Datumsangabe \"2013\" bezieht sich auf die Erstdiagnose des metastasierten Adenokarzinoms der Prostata. + Ja. Die Datumsangabe \"2014\" bezieht sich auf die Erstdiagnose des metastasierten Adenokarzinoms der Prostata.': 1, 'Ja. Die Datumsangabe \"2014\" bezieht sich auf die Erstdiagnose des metastasierten Adenokarzinoms der Prostata. + Ja. Die Datumsangabe \"04/2020\" bezieht sich auf die Erstdiagnose des metastasierten Adenokarzinoms der Prostata. + Ja. Die Datumsangabe \"2015\" bezieht sich auf die Erstdiagnose des metastasierten Adenokarzinoms der Prostata.': 1, 'Ja. Die Datumsangabe \"2016\" bezieht sich auf die Erstdiagnose des metastasierten Adenokarzinoms der Prostata. + Ja. Die Datumsangabe \"2017\" bezieht sich auf die Erstdiagnose des metastasierten Adenokarzinoms der Prostata.': 1, 'Ja. Die Datumsangabe \"2018\" bezieht sich auf die Erstdiagnose des Hormonrefrakt\u00e4ren Prostatakarzinoms. + Ja. Die Datumsangabe \"6/42\" bezieht sich auf die Erstdiagnose des Hormonrefrakt\u00e4ren Prostatakarzinoms. + Ja. Die Datumsangabe \"09/2017\" bezieht sich auf die Erstdiagnose des Hormonrefrakt\u00e4ren Prostatakarzinoms.': 1, 'Ja. Die Datumsangabe \"27.02.2006\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Hodgkin-Lymphom\" (HRPC). + Ja. Die Datumsangabe \"02.01.2006\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Hodgkin-Lymphom\" (HRPC). + Ja. Die Datumsangabe \"02/2004\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Prostatakarzinom\" (PCA). + Ja. Die Datumsangabe \"2004\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Prostatakarzinom\" (PCA). + Ja. Die Datumsangabe \"03/2000\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Prostatakarzinom\" (PCA). + Ja. Die Datumsangabe \"10/1996\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Prostatakarzinom\". + Ja. Die Datumsangabe \"02/2004\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"PCA mit Rectumstenose\". + Ja. Die Datumsangabe \"2004\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"PCA mit Rectumstenose\". + Ja. Die Datumsangabe \"03/2000\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"PCA mit Rectumstenose\". + Ja. Die Datumsangabe \"10/1996\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"PCA mit Rectumstenose\".': 1, 'Ja. Die Datumsangabe \"27.07.2013\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Gro\u00dfzelliges B-Zell-NHL\" (C 8 + Ja. Die Datumsangabe \"06/05\" bezieht sich auf die Erstdiagnose des Gro\u00dfzelligen B-Zell-NHL im Stadium I A.': 1, 'Ja. Die Datumsangabe \"3/2007\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"06/2015\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"2004\" bezieht sich auf die Erstdiagnose des Mammakarzinoms.': 1, 'Ja. Die Datumsangabe \"9/2018\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"1/2019\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms.': 1, 'Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose der Tumorerkrankung \"HRPC\" bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist. + Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose der Tumorerkrankung \"HRPC\" bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist. + Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose der Tumorerkrankung \"HRPC\" bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist.': 1, 'Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose der Tumorerkrankung \"Prostata Ca\" bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist. + Ja. Die Datumsangabe \"2013\" bezieht sich auf die Erstdiagnose der Tumorerkrankung \"Prostata Ca\".': 1, 'Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose des NSCLC bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist. + Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose des NSCLC bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist.': 1, 'Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose des Prostatakarzinoms bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist. + Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose des Prostatakarzinoms bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist.': 1, 'Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose des Tonsillen-Karzinoms bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gekennzeichnet ist. + Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose des Tonsillen-Karzinoms bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gekennzeichnet ist.': 1, 'Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose des Tonsillen-Karzinoms bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist. + Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose des Tonsillen-Karzinoms bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist.': 1, 'Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose des Tonsillenkarzinoms bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist. + Ja. Hier ist anzunehmen, dass sich die Datumsangabe auf die Erstdiagnose des Tonsillenkarzinoms bezieht, auch wenn die Angabe nicht explizit mit \"ED\" gkennzeichnet ist.': 1, 'Nein + Ja. Die Datumsangabe \"05/2011\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"2007\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"06/2011\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"01/2004\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms.': 1, 'Nein + Ja. Die Datumsangabe \"07/2014\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"2010\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"08/2014\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms. + Ja. Die Datumsangabe \"03/2007\" bezieht sich auf die Erstdiagnose des Prostatakarzinoms.': 1}", "step": 3, "model": "utter-project_EuroLLM-1.7B-Instruct", "prompt_type": "4-verify", "model_prev_step": "meta-llama_Meta-Llama-3.1-8B-Instruct"}, {"Unnamed: 0": 12, "results_file": "step3_meta-llama_Meta-Llama-3.1-8B-Instruct__3_step2__0-uro-ctx_step1__6-uro", "p_correct": 0.802547770700637, "p_correct_total": 0.802547770700637, "p_na": 0.0, "wrong_results": "{'0': '04.02.2019', '2008': '07/2015', '2011': '07.07.2019', '2014-04': 'Nein', '2010-02': 'Nein', '2008-03': 'Nein (Es gibt kein Datum zum NSCLC, sondern nur zur Diagnose des Plattenepithelkarzinoms)', '2004-01': 'Nein (Es gibt kein Erstdiagnosedatum zum Prostatakarzinom, sondern nur eine Erstdiagnose im Jahr 2000 f\u00fcr ein B-Zell-NHL und 2004 f\u00fcr ein Tonsillen', '2010-12': 'Nein', '1996': 'Nein'}", "na_values": "{}", "step": 3, "model": "meta-llama_Meta-Llama-3.1-8B-Instruct", "prompt_type": "3", "model_prev_step": "meta-llama_Meta-Llama-3.1-8B-Instruct"}], "unique_models": ["meta-llama_Llama-3.2-1B-Instruct", "utter-project_EuroLLM-1.7B-Instruct", "meta-llama_Llama-3.2-3B-Instruct", "LeoLM_leo-hessianai-7b-chat", "BioMistral_BioMistral-7B", "mistralai_Mistral-7B-Instruct-v0.3", "meta-llama_Meta-Llama-3.1-8B-Instruct", "VAGOsolutions_Llama-3.1-SauerkrautLM-8b-Instruct", "mistralai_Mistral-Nemo-Instruct-2407", "mistralai_Mixtral-8x7B-Instruct-v0.1", "meta-llama_Meta-Llama-3.1-70B-Instruct", "levenshtein-regex"]};
+    const dataRecords = preparedData.data;
+    const uniqueModels = preparedData.unique_models;
+    const levenshteinRegex = preparedData.levenshtein_regex;
+
+    // Erstelle die Charts für jedes Modell
+    const gridContainer = document.getElementById("grid-container");
+    uniqueModels.forEach(modelName => {
+      const gridItem = document.createElement("div");
+      gridItem.classList.add("grid-item");
+      gridItem.id = "container_" + modelName;
+      gridContainer.appendChild(gridItem);
+
+      const canvas = document.createElement("canvas");
+      canvas.id = "chart_" + modelName;
+      canvas.classList.add("chart-container");
+      gridItem.appendChild(canvas);
+
+      const chart = createChart(canvas.id, getModelLabel(modelName), dataRecords.filter(row => row.model === modelName));
+      charts.push(chart);
+    });
+
+    // SortableJS initialisieren und ggf. die Legende aktualisieren wie bisher
+    Sortable.create(gridContainer, {
+      animation: 150,
+      ghostClass: 'sortable-ghost'
+    });
+    updateModelsLegendLayout(uniqueModels);
+    setTimeout(() => {
+      charts.forEach(chart => chart.resize());
+    }, 100);
+
+    /****************************************************
+     * 5) Update Models Legend Layout Based on Grid Container
+     ****************************************************/
+    document.querySelectorAll('.legend-item.shot').forEach(item => {
+      item.addEventListener('click', () => {
+        const shot = item.dataset.shot;
+        item.classList.toggle('inactive');
+        charts.forEach(chart => {
+          chart.data.datasets.forEach(ds => {
+            if (ds.shot === shot) {
+              ds.hidden = item.classList.contains('inactive');
+            }
+          });
+          chart.update();
+        });
+      });
+    });
+
+    /****************************************************
+     * 6) Legend Interactions for Domain, Shot, Metrics
+     ****************************************************/
+    document.querySelectorAll('.legend-item.metric').forEach(item => {
+      item.addEventListener('click', () => {
+        const metricIndex = parseInt(item.dataset.metricIndex);
+        activeMetrics[metricIndex] = !activeMetrics[metricIndex];
+        item.classList.toggle('inactive');
+        charts.forEach(chart => {
+          updateChartMetrics(chart);
+        });
+      });
+    });
+
+    window.addEventListener('resize', () => {
+      const gridContainer = document.getElementById("grid-container");
+      const gridItems = Array.from(gridContainer.getElementsByClassName("grid-item"));
+      const uniqueModels = gridItems.map(item => item.id.replace("container_", ""));
+      updateModelsLegendLayout(uniqueModels);
+      setTimeout(() => {
+        charts.forEach(c => c.resize());
+      }, 100);
+    });
+  </script>
+</body>
+</html>

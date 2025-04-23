@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive Bar Plots Step 1</title>
+  <script>
+    {{ chart_js_content | safe }}
+  </script>
+  <script>
+    {{ sortable_js_content | safe }}
+  </script>
+  <script>
+    {{ fontawesome_js_content | safe }}
+  </script>
+  <style>
+    body {
+      margin: 0;
+      padding: 10px;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    .main-title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      text-align: center;
+      padding-bottom: 20px;
+    }
+    .chart-container {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    #grid-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      align-items: stretch;
+      width: 100%;
+      margin-top: 20px;
+    }
+    .grid-item {
+      flex: 1 1 360px;
+      max-width: 500px;
+      min-width: 500px;
+      height: 280px;
+      box-sizing: border-box;
+    }
+    .legend-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .legend-section {
+      display: flex;
+      align-items: flex-start;
+    }
+    .legend-heading {
+      font-weight: bold;
+      font-size: 14px;
+      margin-right: 15px;
+      white-space: nowrap;
+    }
+    .legend-content {
+      display: flex;
+    }
+    .legend-column {
+      margin-right: 20px;
+    }
+    .legend-item {
+      cursor: pointer;
+      font-size: 14px;
+      margin: 2px 0;
+      display: block;
+      white-space: nowrap;
+    }
+    .legend-box {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+    .legend-item.inactive {
+      opacity: 0.5;
+    }
+    .sortable-ghost {
+      opacity: 0.5;
+    }
+    .info-icon-container {
+      position: relative;
+      display: inline-block;
+      margin-left: 10px;
+    }
+    .info-icon {
+      cursor: pointer;
+      color: #4392C7;
+      font-size: 20px;
+    }
+    .info-tooltip {
+      visibility: hidden;
+      width: 400px;
+      background-color: #f8f9fa;
+      color: #333;
+      text-align: left;
+      border-radius: 6px;
+      padding: 12px;
+      position: absolute;
+      z-index: 1;
+      top: 125%;
+      left: 50%;
+      margin-left: -200px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      border: 1px solid #ddd;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .info-icon-container:hover .info-tooltip {
+      visibility: visible;
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+   <!-- Main title and info tooltip -->
+   <h1 class="main-title">
+    Sensitivity, Specificity and Accuracy for Detecting a Tumor Diagnosis in a Text Snippet Using Different Models
+    <span class="info-icon-container">
+      <i class="fas fa-info-circle info-icon"></i>
+      <div class="info-tooltip">
+        <div class="tooltip-title">Interactive Bar Plot Guide</div>
+        <div class="tooltip-section">
+          <div class="tooltip-section-title">Interactivity Features:</div>
+          <ul class="tooltip-list">
+            <li>Click on any legend item (prompting variants, metrics, models) to toggle their visibility</li>
+            <li>Drag and drop model charts to reorder them as needed</li>
+            <li>Hover over bars to see detailed information</li>
+          </ul>
+        </div>
+        <div class="tooltip-section">
+          <div class="tooltip-section-title">Tips:</div>
+          <ul class="tooltip-list">
+            <li>Hide/show specific models to focus your comparison</li>
+            <li>Toggle between metrics to analyze different aspects of performance</li>
+          </ul>
+        </div>
+      </div>
+    </span>
+  </h1>
+
+  <!-- Top legends container -->
+  <div class="legend-container">
+    <!-- Prompting Variants -->
+    <div class="legend-section">
+      <span class="legend-heading">Prompting Variants:</span>
+      <div class="legend-content">
+        <!-- Domain Column -->
+        <div class="legend-column">
+          <span class="legend-item" data-domain="uro">
+            <span class="legend-box" style="background-color: #1f77b4;"></span> Fictious examples from urology
+          </span>
+          <span class="legend-item" data-domain="gyn">
+            <span class="legend-box" style="background-color: #d62728;"></span> Fictious examples from gynecology
+          </span>
+        </div>
+        <!-- Shot Column -->
+        <div class="legend-column">
+          <span class="legend-item shot" data-shot="0">
+            <span class="legend-box" style="background-color: #A48D79;"></span> Zero-shot prompting
+          </span>
+          <span class="legend-item shot" data-shot="2">
+            <span class="legend-box" style="background: linear-gradient(to right, #A1C8E3 50%, #fcae91 50%);"></span> Two-shot prompting
+          </span>
+          <span class="legend-item shot" data-shot="4">
+            <span class="legend-box" style="background: linear-gradient(to right, #4392C7 50%, #fb6a4a 50%);"></span> Four-shot prompting
+          </span>
+          <span class="legend-item shot" data-shot="6">
+            <span class="legend-box" style="background: linear-gradient(to right, #08519c 50%, #cb181d 50%);"></span> Six-shot prompting
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metrics legend -->
+    <div class="legend-section">
+      <span class="legend-heading">Metrics:</span>
+      <div class="legend-content">
+        <div class="legend-column">
+          <span class="legend-item metric" data-metric-index="0">Sensitivity</span>
+          <span class="legend-item metric" data-metric-index="1">Specificity</span>
+          <span class="legend-item metric" data-metric-index="2">Accuracy</span>
+          <span class="legend-item metric" data-metric-index="3">NA</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Models legend -->
+    <div class="legend-section" id="models-legend-section">
+      <span class="legend-heading">Models:</span>
+      <div class="legend-content" id="models-legend"></div>
+    </div>
+  </div>
+
+  <!-- Grid container for charts -->
+  <div id="grid-container"></div>
+
+  <script>
+    /****************************************************
+     * Data
+     ****************************************************/
+    const preparedData = {{ prepared_data | safe }};
+    const dataRecords = preparedData.data;
+    const uniqueModels = preparedData.unique_models;
+
+    /****************************************************
+     * 1) Mappings and Utility Functions
+     ****************************************************/
+    const METRIC_LABELS = {
+      "recall": "Sensitivity",
+      "specificity": "Specificity",
+      "p_correct_total": "Accuracy (NA=wrong)",
+      "p_correct": "Accuracy (excl. NA)",
+      "p_na": "NA"
+    };
+
+    const MODEL_LABELS = {
+      "meta-llama_Llama-3.2-1B-Instruct": "LLama 3.2 1B",
+      "utter-project_EuroLLM-1.7B-Instruct": "EuroLLM 1.7B",
+      "meta-llama_Llama-3.2-3B-Instruct": "LLama 3.2 3B",
+      "LeoLM_leo-hessianai-7b-chat": "LeoLM 7B Chat",
+      "BioMistral_BioMistral-7B": "BioMistral-7B",
+      "mistralai_Mistral-7B-Instruct-v0.3": "Mistral 7B v0.3",
+      "meta-llama_Meta-Llama-3.1-8B-Instruct": "Llama 3.1 8B",
+      "VAGOsolutions_Llama-3.1-SauerkrautLM-8b-Instruct": "Llama 3.1 SauerkrautLM 8B",
+      "mistralai_Mistral-Nemo-Instruct-2407": "Mistral NeMo 12B",
+      "mistralai_Mixtral-8x7B-Instruct-v0.1": "Mixtral 8x7B",
+      "meta-llama_Meta-Llama-3.1-70B-Instruct": "Llama 3.1 70B",
+      "levenshtein-regex": "Levenshtein/Regex heuristics"
+    };
+
+    function getMetricLabel(metric) {
+      return METRIC_LABELS[metric] || metric;
+    }
+
+    function getModelLabel(model_id) {
+      return MODEL_LABELS[model_id] || model_id;
+    }
+
+
+    /****************************************************
+     * 2) Chart.js Setup
+     ****************************************************/
+    const metrics = ["recall", "specificity", "p_correct_total", "p_na"];
+    const metricDisplayNames = metrics.map(metric => getMetricLabel(metric));
+    let activeMetrics = metrics.map(() => true);
+    const color_map = {
+      "uro": { "2": "#A1C8E3", "4": "#4392C7", "6": "#08519c" },
+      "gyn": { "2": "#fcae91", "4": "#fb6a4a", "6": "#cb181d" }
+    };
+    const leftPadding = 20;
+    let charts = [];
+
+    let modelVisibility = {};
+
+    Chart.register({
+      id: 'modelNamePlugin',
+      afterDraw: (chart) => {
+        const ctx = chart.ctx;
+        ctx.save();
+        const modelName = chart.config.options.modelName || '';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillStyle = 'black';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(modelName, chart.chartArea.left, chart.chartArea.top - 5);
+        ctx.restore();
+      }
+    });
+
+
+    function createDatasets(rows) {
+      const datasets = rows.map(row => {
+        const [shot, domain] = row.prompt_type.split('-');
+        const data = metrics.map(metric => parseFloat(row[metric]));
+        return {
+          label: row.prompt_type,
+          domain: domain,
+          shot: shot,
+          data: data,
+          originalData: data,
+          backgroundColor: (color_map[domain] && color_map[domain][shot]) ? color_map[domain][shot] : '#A48D79'
+        };
+      });
+      // Sort datasets: 0-shot first, then by domain order, then shot number
+      return datasets.sort((a, b) => {
+        if (a.shot === "0" && b.shot !== "0") return -1;
+        if (a.shot !== "0" && b.shot === "0") return 1;
+        if (a.shot === "0" && b.shot === "0") {
+          return a.domain === "uro" ? -1 : 1;
+        }
+        if (a.domain !== b.domain) {
+          return a.domain === "uro" ? -1 : 1;
+        }
+        return parseInt(a.shot) - parseInt(b.shot);
+      });
+    }
+
+    function updateChartMetrics(chart) {
+      const newLabels = metrics.filter((_, i) => activeMetrics[i])
+                                 .map(metric => getMetricLabel(metric));
+      chart.data.labels = newLabels;
+      chart.data.datasets.forEach(ds => {
+        ds.data = ds.originalData.filter((_, i) => activeMetrics[i]);
+      });
+      chart.update();
+    }
+
+    function createChart(canvasID, modelName, rows) {
+      const datasets = createDatasets(rows);
+      return new Chart(document.getElementById(canvasID), {
+        type: 'bar',
+        data: {
+          labels: metricDisplayNames,
+          datasets: datasets
+        },
+        options: {
+          modelName: modelName,
+          layout: {
+            padding: {
+              left: leftPadding,
+              top: 25,
+              right: 5,
+              bottom: 5
+            }
+          },
+          indexAxis: 'y',
+          scales: {
+            x: {
+              min: 0,
+              max: 1,
+              beginAtZero: true
+            },
+            y: {
+              ticks: {
+                padding: 5,
+                font: { size: 11 }
+              }
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              displayColors: true,
+              callbacks: {
+                title: function(tooltipItems) {
+                  const ds = tooltipItems[0].dataset;
+                  if (ds.shot === "0") {
+                    return "0-shot";
+                  }
+                  return `${ds.domain} - ${ds.shot} shot`;
+                }
+              }
+            }
+          },
+          maintainAspectRatio: false,
+          devicePixelRatio: 2
+        }
+      });
+    }
+
+    /****************************************************
+     * 3) Build the Page and Models Legend Layout
+     ****************************************************/
+    let models = {};
+    dataRecords.forEach(row => {
+      const model = row.model;
+      if (!models[model]) {
+        models[model] = [];
+      }
+      models[model].push(row);
+    });
+
+    const orderedModels = uniqueModels.reverse();
+
+    const gridContainer = document.getElementById("grid-container");
+    orderedModels.forEach(modelName => {
+      modelVisibility[modelName] = true;
+
+      const gridItem = document.createElement("div");
+      gridItem.classList.add("grid-item");
+      gridItem.id = "container_" + modelName;
+      gridItem.dataset.modelId = modelName;
+      gridContainer.appendChild(gridItem);
+
+      const canvas = document.createElement("canvas");
+      canvas.id = "chart_" + modelName;
+      canvas.classList.add("chart-container");
+      gridItem.appendChild(canvas);
+
+      const chart = createChart(canvas.id, getModelLabel(modelName), models[modelName]);
+      charts.push(chart);
+    });
+
+    const sortable = Sortable.create(gridContainer, {
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+    });
+
+    /****************************************************
+     * 4) Update Models Legend Layout Based on Grid Container
+     ****************************************************/
+    function updateModelsLegendLayout() {
+    const modelsLegend = document.getElementById("models-legend");
+    modelsLegend.innerHTML = '';
+
+    const gridItems = Array.from(document.querySelectorAll('.grid-item'));
+    const modelIds = gridItems.map(item => item.dataset.modelId);
+
+    const chartWidth = 500;
+    const gap = 20;
+    const containerWidth = document.getElementById("grid-container").clientWidth;
+    const cols = Math.max(1, Math.floor(containerWidth / (chartWidth + gap)));
+
+    const modelsByColumn = Array.from({ length: cols }, () => []);
+    modelIds.forEach((modelId, idx) => {
+        modelsByColumn[idx % cols].push(modelId);
+    });
+
+    modelsByColumn.forEach(modelGroup => {
+        const column = document.createElement("div");
+        column.classList.add("legend-column");
+
+        modelGroup.forEach(modelId => {
+        const modelLabel = getModelLabel(modelId);
+        const item = document.createElement("span");
+        item.classList.add("legend-item", "model");
+        item.textContent = modelLabel;
+        item.dataset.modelName = modelId;
+
+        if (!modelVisibility[modelId]) {
+            item.classList.add("inactive");
+            document.getElementById("container_" + modelId).style.display = "none";
+        }
+
+        item.addEventListener('click', () => {
+            const gridItem = document.getElementById("container_" + modelId);
+            const isVisible = gridItem.style.display !== "none";
+            gridItem.style.display = isVisible ? "none" : "block";
+            item.classList.toggle("inactive");
+            modelVisibility[modelId] = !isVisible;
+            setTimeout(() => charts.forEach(c => c.resize()), 100);
+        });
+
+        column.appendChild(item);
+        });
+
+        modelsLegend.appendChild(column);
+    });
+    }
+
+    updateModelsLegendLayout();
+
+    setTimeout(() => {
+      charts.forEach(chart => chart.resize());
+    }, 100);
+
+    /****************************************************
+     * 5) Legend Interactions for Domain, Shot, Metrics
+     ****************************************************/
+    document.querySelectorAll('.legend-item[data-domain]').forEach(item => {
+      item.addEventListener('click', () => {
+        const domain = item.dataset.domain;
+        item.classList.toggle('inactive');
+        charts.forEach(chart => {
+          chart.data.datasets.forEach(ds => {
+            if (ds.domain === domain) {
+              ds.hidden = item.classList.contains('inactive');
+            }
+          });
+          chart.update();
+        });
+      });
+    });
+
+    document.querySelectorAll('.legend-item.shot').forEach(item => {
+      item.addEventListener('click', () => {
+        const shot = item.dataset.shot;
+        item.classList.toggle('inactive');
+        charts.forEach(chart => {
+          chart.data.datasets.forEach(ds => {
+            if (ds.shot === shot) {
+              ds.hidden = item.classList.contains('inactive');
+            }
+          });
+          chart.update();
+        });
+      });
+    });
+
+    document.querySelectorAll('.legend-item.metric').forEach(item => {
+      item.addEventListener('click', () => {
+        const metricIndex = parseInt(item.dataset.metricIndex);
+        activeMetrics[metricIndex] = !activeMetrics[metricIndex];
+        item.classList.toggle('inactive');
+        charts.forEach(chart => {
+          updateChartMetrics(chart);
+        });
+      });
+    });
+
+    window.addEventListener('resize', () => {
+      setTimeout(() => {
+        charts.forEach(c => c.resize());
+      }, 100);
+    });
+  </script>
+</body>
+</html>

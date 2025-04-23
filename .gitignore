@@ -2,3 +2,6 @@ __pycache__/*
 output/*
 venv/*
 processed_csvs
+interactive_plots_project/data
+interactive_plots_project/libs
+project/

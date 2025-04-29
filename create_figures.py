@@ -1,6 +1,7 @@
 import os
 from create_summary_plot import create_summary_plot
 from create_few_shot_comparison_graph import create_few_shot_comparison_graph
+from interactive_plot_generator import create_interactive_plot
 
 # Define paths
 results_folder = r"output"  # Folder with results from the experiments
@@ -105,3 +106,8 @@ create_summary_plot(
     model_offset=0.12,
     models_to_display=["PAPER_MODELS"],
 )
+
+# Interactive Plots
+create_interactive_plot(step=1)
+create_interactive_plot(step=2)
+create_interactive_plot(step=3)

@@ -79,13 +79,3 @@ def create_interactive_plot(step: int, models_to_display: list[str] = ["PAPER_MO
         f.write(rendered)
 
     print(f"Interactive Plot for step {step} generated: {output_path}")
-
-
-def main():
-    create_interactive_plot(step=1)
-    create_interactive_plot(step=2)
-    create_interactive_plot(step=3)
-
-
-if __name__ == "__main__":
-    main()

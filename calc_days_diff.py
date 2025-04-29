@@ -28,7 +28,7 @@ def compare_csv_dates(csv_file, output_csv=None):
         lambda x: normalize_date_answer(str(x)) if pd.notna(x) else None
     )
 
-    # calc differnece in days and months
+    # calc difference in days and months
     def compute_diff(row):
         if row["expected_norm"] == "0":
             return pd.Series({"days_diff": None, "months_diff": None})
@@ -38,14 +38,30 @@ def compare_csv_dates(csv_file, output_csv=None):
             return pd.Series({"days_diff": None, "months_diff": None})
         delta = abs(model_date - expected_date)
         days_diff = delta.days
-        # Grobe Umrechnung in Monate (30 Tage pro Monat)
         months_diff = days_diff // 30
         return pd.Series({"days_diff": days_diff, "months_diff": months_diff})
 
     df = df.join(df.apply(compute_diff, axis=1))
 
+    def model_in_regex(row):
+        if pd.isna(row["model_norm"]) or pd.isna(row["regex_matched_dates"]):
+            return False
+        try:
+            dates = eval(row["regex_matched_dates"])
+            normalized_dates = set(
+                normalize_date_answer(str(d)) for d in dates if d and d != "0"
+            )
+            return row["model_norm"] in normalized_dates
+        except Exception:
+            return False
+
+    df["model_answer_in_regex_matches"] = df.apply(model_in_regex, axis=1)
+
     if output_csv:
-        df[["expected_answer", "model_answer", "model_norm", "expected_norm", "days_diff", "months_diff"]].to_csv(output_csv, index=False)
+        df[[
+            "expected_answer", "model_answer", "model_norm", "expected_norm",
+            "days_diff", "months_diff", "model_answer_in_regex_matches"
+        ]].to_csv(output_csv, index=False)
 
     return df
 
@@ -69,17 +85,33 @@ def summarize_results(processed_folder, summary_csv):
     for csv_file in processed_files:
         df = pd.read_csv(csv_file)
         base_name = os.path.basename(csv_file)
+
         try:
             model_name = extract_model_name_from_filename(base_name, 1)
-        except Exception as e:
+        except Exception:
             model_name = None
         try:
             prompt_type = extract_prompt_type_from_filename(base_name)
-        except Exception as e:
+        except Exception:
             prompt_type = None
 
         days_series = pd.to_numeric(df["days_diff"], errors="coerce").dropna()
         months_series = pd.to_numeric(df["months_diff"], errors="coerce").dropna()
+
+        num_questions = len(df)
+        num_wrong_answers = df["days_diff"].apply(lambda x: pd.notna(x) and x > 0).sum()
+        num_answers_not_in_regex_matches = df.apply(
+            lambda row: pd.notna(row["days_diff"]) and row["days_diff"] > 0 and not row.get("model_answer_in_regex_matches", False),
+            axis=1
+        ).sum()
+
+        wrong_not_in_regex_df = df[
+            (df["days_diff"].apply(lambda x: pd.notna(x) and x > 0)) &
+            (~df["model_answer_in_regex_matches"])
+        ]
+
+        days_stats_wrong_not_in_regex = pd.to_numeric(wrong_not_in_regex_df["days_diff"], errors="coerce").describe() if not wrong_not_in_regex_df.empty else {}
+        months_stats_wrong_not_in_regex = pd.to_numeric(wrong_not_in_regex_df["months_diff"], errors="coerce").describe() if not wrong_not_in_regex_df.empty else {}
 
         days_stats = days_series.describe() if not days_series.empty else {}
         months_stats = months_series.describe() if not months_series.empty else {}
@@ -87,13 +119,21 @@ def summarize_results(processed_folder, summary_csv):
         summary_list.append({
             "model": model_name,
             "prompt type": prompt_type,
-            "diff_answers_count": days_stats.get("count", 0),
+            "num_questions": num_questions,
+            "num_wrong_answers": num_wrong_answers,
+            "num_answers_not_in_regex_matches": num_answers_not_in_regex_matches,
             "days_mean": days_stats.get("mean", None),
             "days_min": days_stats.get("min", None),
             "days_max": days_stats.get("max", None),
             "months_mean": months_stats.get("mean", None),
             "months_min": months_stats.get("min", None),
             "months_max": months_stats.get("max", None),
+            "days_mean_wrong_not_in_regex": days_stats_wrong_not_in_regex.get("mean", None),
+            "days_min_wrong_not_in_regex": days_stats_wrong_not_in_regex.get("min", None),
+            "days_max_wrong_not_in_regex": days_stats_wrong_not_in_regex.get("max", None),
+            "months_mean_wrong_not_in_regex": months_stats_wrong_not_in_regex.get("mean", None),
+            "months_min_wrong_not_in_regex": months_stats_wrong_not_in_regex.get("min", None),
+            "months_max_wrong_not_in_regex": months_stats_wrong_not_in_regex.get("max", None),
         })
 
     summary_df = pd.DataFrame(summary_list)

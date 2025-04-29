@@ -20,15 +20,15 @@ def create_interactive_plot(step: int, models_to_display: list[str] = ["PAPER_MO
     if step == 1:
         csv_file = "analysis_step1.csv"
         template_name = "template_step_1.html"
-        output_name = "Figure S1_2.html"
+        output_name = "Figure S1.html"
     elif step == 2:
         csv_file = "analysis_step2.csv"
         template_name = "template_step_2.html"
-        output_name = "Figure S2_2.html"
+        output_name = "Figure S2.html"
     elif step == 3:
         csv_file = "analysis_step3.csv"
         template_name = "template_step_3.html"
-        output_name = "Figure S3_4.html"
+        output_name = "Figure S3.html"
     else:
         raise ValueError(f"Unknown Step: {step}. Only 1, 2 or 3 valid.")
 

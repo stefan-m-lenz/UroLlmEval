@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Interactive Bar Plots Step 1</title>
+  <title>Figure S1</title>
   <script>
     /**
  * Skipped minification because the original files appears to be already minified.
@@ -441,59 +441,59 @@
      * 4) Update Models Legend Layout Based on Grid Container
      ****************************************************/
     function updateModelsLegendLayout() {
-    const modelsLegend = document.getElementById("models-legend");
-    modelsLegend.innerHTML = '';
+      const modelsLegend = document.getElementById("models-legend");
+      modelsLegend.innerHTML = '';
 
-    const gridItems = Array.from(document.querySelectorAll('.grid-item'));
-    const modelIds = gridItems.map(item => item.dataset.modelId);
+      const gridItems = Array.from(document.querySelectorAll('.grid-item'));
+      const modelIds = gridItems.map(item => item.dataset.modelId);
 
-    const chartWidth = 500;
-    const gap = 20;
-    const containerWidth = document.getElementById("grid-container").clientWidth;
-    const cols = Math.max(1, Math.floor(containerWidth / (chartWidth + gap)));
+      const chartWidth = 500;
+      const gap = 20;
+      const containerWidth = document.getElementById("grid-container").clientWidth;
+      const cols = Math.max(1, Math.floor(containerWidth / (chartWidth + gap)));
 
-    const modelsByColumn = Array.from({ length: cols }, () => []);
-    modelIds.forEach((modelId, idx) => {
-        modelsByColumn[idx % cols].push(modelId);
-    });
+      const modelsByColumn = Array.from({ length: cols }, () => []);
+      modelIds.forEach((modelId, idx) => {
+          modelsByColumn[idx % cols].push(modelId);
+      });
 
-    modelsByColumn.forEach(modelGroup => {
-        const column = document.createElement("div");
-        column.classList.add("legend-column");
+      modelsByColumn.forEach(modelGroup => {
+          const column = document.createElement("div");
+          column.classList.add("legend-column");
 
-        modelGroup.forEach(modelId => {
-        const modelLabel = getModelLabel(modelId);
-        const item = document.createElement("span");
-        item.classList.add("legend-item", "model");
-        item.textContent = modelLabel;
-        item.dataset.modelName = modelId;
+          modelGroup.forEach(modelId => {
+          const modelLabel = getModelLabel(modelId);
+          const item = document.createElement("span");
+          item.classList.add("legend-item", "model");
+          item.textContent = modelLabel;
+          item.dataset.modelName = modelId;
 
-        if (!modelVisibility[modelId]) {
-            item.classList.add("inactive");
-            document.getElementById("container_" + modelId).style.display = "none";
-        }
+          if (!modelVisibility[modelId]) {
+              item.classList.add("inactive");
+              document.getElementById("container_" + modelId).style.display = "none";
+          }
 
-        item.addEventListener('click', () => {
-            const gridItem = document.getElementById("container_" + modelId);
-            const isVisible = gridItem.style.display !== "none";
-            gridItem.style.display = isVisible ? "none" : "block";
-            item.classList.toggle("inactive");
-            modelVisibility[modelId] = !isVisible;
-            setTimeout(() => charts.forEach(c => c.resize()), 100);
-        });
+          item.addEventListener('click', () => {
+              const gridItem = document.getElementById("container_" + modelId);
+              const isVisible = gridItem.style.display !== "none";
+              gridItem.style.display = isVisible ? "none" : "block";
+              item.classList.toggle("inactive");
+              modelVisibility[modelId] = !isVisible;
+              setTimeout(() => charts.forEach(c => c.resize()), 100);
+          });
 
-        column.appendChild(item);
-        });
+          column.appendChild(item);
+          });
 
-        modelsLegend.appendChild(column);
-    });
+          modelsLegend.appendChild(column);
+      });
     }
 
     updateModelsLegendLayout();
-
-    setTimeout(() => {
-      charts.forEach(chart => chart.resize());
-    }, 100);
+    window.addEventListener("resize", ()=>{
+      updateModelsLegendLayout();
+      setTimeout(()=>charts.forEach(c=>c.resize()),100);
+    });
 
     /****************************************************
      * 5) Legend Interactions for Domain, Shot, Metrics

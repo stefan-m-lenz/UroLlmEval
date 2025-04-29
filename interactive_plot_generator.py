@@ -1,16 +1,15 @@
 import os
 import json
 from jinja2 import Environment, FileSystemLoader
-from data_processing_module import preprocess_data, MODEL_LABELS
-from data_processing_module import extract_model_name_from_filename
-from create_summary_plot import get_analysis_file_path, split_df, find_best_result, find_best_results_df
+from create_summary_plot import preprocess_data, get_analysis_file_path, split_df, find_best_result, find_best_results_df
+from results_helper import MODEL_LABELS, extract_model_name_from_filename
 
 def get_best_per_prompt(df):
     idx = df.groupby(["model", "prompt_type"])["p_snippets_correct"].idxmax()
     return df.loc[idx]
 
 def create_interactive_plot(step: int, models_to_display: list[str] = ["PAPER_MODELS"]) -> None:
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "interactive_plots"))
     data_dir = os.path.join(base_dir, "data")
     template_dir = os.path.join(base_dir, "templates")
     libs_dir = os.path.join(base_dir, "libs")
@@ -36,7 +35,8 @@ def create_interactive_plot(step: int, models_to_display: list[str] = ["PAPER_MO
     df, unique_models = preprocess_data(analysis_path, models_to_display=models_to_display)
 
     if step == 2:
-        df = get_best_per_prompt(df)
+        idx = df.groupby(["model", "prompt_type"])["p_snippets_correct"].idxmax()
+        df = df.loc[idx]
     elif step == 3:
         idx_best = df.groupby(["model", "prompt_type"])["p_correct"].idxmax()
         df_data = df.loc[idx_best].reset_index(drop=True)

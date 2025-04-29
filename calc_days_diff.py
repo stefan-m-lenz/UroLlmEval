@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import datetime
 
 from analyze_step3_results import normalize_date_answer
-from results_helper import extract_model_name_from_filename, extract_prompt_type_from_filename, extract_step_from_filename
+from results_helper import extract_model_name_from_filename, extract_prompt_type_from_filename
 
 def parse_date(date_str):
     if not date_str or date_str == "0":
@@ -20,7 +20,7 @@ def parse_date(date_str):
 def compare_csv_dates(csv_file, output_csv=None):
     df = pd.read_csv(csv_file)
 
-    # normalise dates
+    # normalize dates
     df["model_norm"] = df["model_answer"].apply(
         lambda x: normalize_date_answer(str(x)) if pd.notna(x) else None
     )
@@ -28,12 +28,22 @@ def compare_csv_dates(csv_file, output_csv=None):
         lambda x: normalize_date_answer(str(x)) if pd.notna(x) else None
     )
 
-    # calc difference in days and months
+    # calculate differences in days and months
     def compute_diff(row):
-        if row["expected_norm"] == "0":
+        m_norm = row.get("model_norm")
+        e_norm = row.get("expected_norm")
+        # skip empty or zero answers
+        if not e_norm or e_norm == "0" or not m_norm:
             return pd.Series({"days_diff": None, "months_diff": None})
-        model_date = parse_date(row["model_norm"])
-        expected_date = parse_date(row["expected_norm"])
+        # year-only case: treat each year as 365 days and 12 months
+        if re.fullmatch(r"\d{4}", str(m_norm)) and re.fullmatch(r"\d{4}", str(e_norm)):
+            year_diff = abs(int(m_norm) - int(e_norm))
+            days_diff = year_diff * 365
+            months_diff = year_diff * 12
+            return pd.Series({"days_diff": days_diff, "months_diff": months_diff})
+        # parse full or year-month dates
+        model_date = parse_date(m_norm)
+        expected_date = parse_date(e_norm)
         if model_date is None or expected_date is None:
             return pd.Series({"days_diff": None, "months_diff": None})
         delta = abs(model_date - expected_date)
@@ -44,7 +54,7 @@ def compare_csv_dates(csv_file, output_csv=None):
     df = df.join(df.apply(compute_diff, axis=1))
 
     def model_in_regex(row):
-        if pd.isna(row["model_norm"]) or pd.isna(row["regex_matched_dates"]):
+        if pd.isna(row.get("model_norm")) or pd.isna(row.get("regex_matched_dates")):
             return False
         try:
             dates = eval(row["regex_matched_dates"])
@@ -72,7 +82,7 @@ def process_csv_folder(input_folder, output_folder):
     csv_files = glob.glob(os.path.join(input_folder, "*.csv"))
     for csv_file in csv_files:
         base_name = os.path.basename(csv_file)
-        if not (base_name.startswith("step3") and "step1" in base_name):
+        if not (base_name.startswith("step3")):
             continue
         file_name, ext = os.path.splitext(base_name)
         output_file = os.path.join(output_folder, file_name + "_days_diff.csv")
@@ -86,8 +96,10 @@ def summarize_results(processed_folder, summary_csv):
         df = pd.read_csv(csv_file)
         base_name = os.path.basename(csv_file)
 
+        # Modell- und Prompt-Typ extrahieren
         try:
-            model_name = extract_model_name_from_filename(base_name, 1)
+            model_name = extract_model_name_from_filename(base_name, step=3)
+            prev_model_name = extract_model_name_from_filename(base_name, step=2)
         except Exception:
             model_name = None
         try:
@@ -95,47 +107,92 @@ def summarize_results(processed_folder, summary_csv):
         except Exception:
             prompt_type = None
 
-        days_series = pd.to_numeric(df["days_diff"], errors="coerce").dropna()
-        months_series = pd.to_numeric(df["months_diff"], errors="coerce").dropna()
-
         num_questions = len(df)
-        num_wrong_answers = df["days_diff"].apply(lambda x: pd.notna(x) and x > 0).sum()
-        num_answers_not_in_regex_matches = df.apply(
-            lambda row: pd.notna(row["days_diff"]) and row["days_diff"] > 0 and not row.get("model_answer_in_regex_matches", False),
+
+        # 1) NaN-Antworten (kein days_diff berechnet)
+        num_na_answers = df["days_diff"].isna().sum()
+
+        # 2) Exakt gleiche Antworten (days_diff == 0)
+        num_equal_answers = df["days_diff"].apply(
+            lambda x: pd.notna(x) and x == 0
+        ).sum()
+
+        # 3) Unterschiedliche Antworten (days_diff > 0)
+        num_diff_answers = df["days_diff"].apply(
+            lambda x: pd.notna(x) and x > 0
+        ).sum()
+
+        # 4) Unterschiedliche Antworten, die nicht per Regex validiert wurden
+        num_diff_not_in_regex = df.apply(
+            lambda row: pd.notna(row["days_diff"])
+                        and row["days_diff"] > 0
+                        and not row.get("model_answer_in_regex_matches", False),
             axis=1
         ).sum()
 
-        wrong_not_in_regex_df = df[
-            (df["days_diff"].apply(lambda x: pd.notna(x) and x > 0)) &
-            (~df["model_answer_in_regex_matches"])
-        ]
+        # Prozentwerte (optional)
+        pct_na    = num_na_answers    / num_questions * 100 if num_questions else 0
+        pct_equal = num_equal_answers / num_questions * 100 if num_questions else 0
+        pct_diff  = num_diff_answers  / num_questions * 100 if num_questions else 0
 
-        days_stats_wrong_not_in_regex = pd.to_numeric(wrong_not_in_regex_df["days_diff"], errors="coerce").describe() if not wrong_not_in_regex_df.empty else {}
-        months_stats_wrong_not_in_regex = pd.to_numeric(wrong_not_in_regex_df["months_diff"], errors="coerce").describe() if not wrong_not_in_regex_df.empty else {}
+        # Für detaillierte Statistiken nur die unterschiedlichen Antworten betrachten
+        diff_df = df[df["days_diff"].apply(lambda x: pd.notna(x) and x > 0)]
+
+        days_series = pd.to_numeric(diff_df["days_diff"], errors="coerce").dropna()
+        months_series = pd.to_numeric(diff_df["months_diff"], errors="coerce").dropna()
 
         days_stats = days_series.describe() if not days_series.empty else {}
         months_stats = months_series.describe() if not months_series.empty else {}
 
+        # Stats für die falsch-Regex-geprüften
+        wrong_not_in_regex_df = diff_df[~diff_df["model_answer_in_regex_matches"]]
+        days_stats_wrong_not_in_regex = (
+            pd.to_numeric(wrong_not_in_regex_df["days_diff"], errors="coerce")
+              .describe()
+            if not wrong_not_in_regex_df.empty else {}
+        )
+        months_stats_wrong_not_in_regex = (
+            pd.to_numeric(wrong_not_in_regex_df["months_diff"], errors="coerce")
+              .describe()
+            if not wrong_not_in_regex_df.empty else {}
+        )
+
+        # Zusammenfassung für dieses Modell/prompt
         summary_list.append({
             "model": model_name,
             "prompt type": prompt_type,
             "num_questions": num_questions,
-            "num_wrong_answers": num_wrong_answers,
-            "num_answers_not_in_regex_matches": num_answers_not_in_regex_matches,
+            "prev_model": prev_model_name,
+
+            "num_na_answers": num_na_answers,
+            "pct_na": pct_na,
+
+            "num_equal_answers": num_equal_answers,
+            "pct_equal": pct_equal,
+
+            "num_diff_answers": num_diff_answers,
+            "pct_diff": pct_diff,
+
+            "num_diff_not_in_regex": num_diff_not_in_regex,
+
             "days_mean": days_stats.get("mean", None),
             "days_min": days_stats.get("min", None),
             "days_max": days_stats.get("max", None),
+
             "months_mean": months_stats.get("mean", None),
             "months_min": months_stats.get("min", None),
             "months_max": months_stats.get("max", None),
+
             "days_mean_wrong_not_in_regex": days_stats_wrong_not_in_regex.get("mean", None),
             "days_min_wrong_not_in_regex": days_stats_wrong_not_in_regex.get("min", None),
             "days_max_wrong_not_in_regex": days_stats_wrong_not_in_regex.get("max", None),
+
             "months_mean_wrong_not_in_regex": months_stats_wrong_not_in_regex.get("mean", None),
             "months_min_wrong_not_in_regex": months_stats_wrong_not_in_regex.get("min", None),
             "months_max_wrong_not_in_regex": months_stats_wrong_not_in_regex.get("max", None),
         })
 
+    # DataFrame erstellen, sortieren und als CSV speichern
     summary_df = pd.DataFrame(summary_list)
     summary_df.sort_values(by=["model", "prompt type"], inplace=True)
     summary_df.to_csv(summary_csv, index=False)

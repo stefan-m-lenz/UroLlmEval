@@ -510,7 +510,12 @@ function createChart(canvasID, modelName, rows) {
       canvas.classList.add("chart-container");
       gridItem.appendChild(canvas);
 
-      const chart = createChart(canvas.id, getModelLabel(modelName), dataRecords.filter(row => row.model === modelName));
+      // Prüfe, ob es sich um das levenshtein-regex Modell handelt und spezielle Daten vorhanden sind
+      const modelData = (modelName === "levenshtein-regex" && levenshteinRegex)
+        ? levenshteinRegex
+        : dataRecords.filter(row => row.model === modelName);
+
+      const chart = createChart(canvas.id, getModelLabel(modelName), modelData);
       charts.push(chart);
     });
 

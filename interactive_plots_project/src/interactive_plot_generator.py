@@ -2,6 +2,8 @@ import os
 import json
 from jinja2 import Environment, FileSystemLoader
 from data_processing_module import preprocess_data, MODEL_LABELS
+from data_processing_module import extract_model_name_from_filename
+from create_summary_plot import get_analysis_file_path, split_df, find_best_result, find_best_results_df
 
 def get_best_per_prompt(df):
     idx = df.groupby(["model", "prompt_type"])["p_snippets_correct"].idxmax()
@@ -26,7 +28,7 @@ def create_interactive_plot(step: int, models_to_display: list[str] = ["PAPER_MO
     elif step == 3:
         csv_file = "analysis_step3.csv"
         template_name = "template_step_3.html"
-        output_name = "Figure S3_3.html"
+        output_name = "Figure S3_4.html"
     else:
         raise ValueError(f"Unknown Step: {step}. Only 1, 2 or 3 valid.")
 
@@ -37,9 +39,20 @@ def create_interactive_plot(step: int, models_to_display: list[str] = ["PAPER_MO
         df = get_best_per_prompt(df)
     elif step == 3:
         idx_best = df.groupby(["model", "prompt_type"])["p_correct"].idxmax()
-        df = df.loc[idx_best].reset_index(drop=True)
+        df_data = df.loc[idx_best].reset_index(drop=True)
 
-    data_dict = {"data": df.to_dict(orient="records"), "unique_models": unique_models}
+        best_models = {}
+        for step_i in range(1, 3):
+            best_result = find_best_result(get_analysis_file_path(data_dir, step_i), models=best_models)
+            best_models[step_i] = extract_model_name_from_filename(best_result, step_i)
+
+        _, best_model_prev_step_df = split_df(df, step=3)
+        best_df = find_best_results_df(best_model_prev_step_df, step=3, best_models=best_models)
+        levenshtein_best_df = best_df[best_df["model"] == "levenshtein-regex"]
+
+        df = df_data
+
+    data_dict = {"data": df.to_dict(orient="records"), "unique_models": unique_models, **({"levenshtein_regex": levenshtein_best_df.to_dict(orient="records")} if step == 3 else {})}
     prepared_data = json.dumps(data_dict)
 
     env = Environment(loader=FileSystemLoader(template_dir))

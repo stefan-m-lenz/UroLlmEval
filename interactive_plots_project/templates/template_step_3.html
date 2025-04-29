@@ -494,7 +494,7 @@ function createChart(canvasID, modelName, rows) {
 
     const preparedData = {{ prepared_data | safe }};
     const dataRecords = preparedData.data;
-    const uniqueModels = preparedData.unique_models;
+    const uniqueModels = preparedData.unique_models.reverse();
     const levenshteinRegex = preparedData.levenshtein_regex;
 
     // Erstelle die Charts für jedes Modell

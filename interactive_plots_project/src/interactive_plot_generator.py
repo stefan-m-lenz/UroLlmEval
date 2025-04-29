@@ -18,15 +18,15 @@ def create_interactive_plot(step: int, models_to_display: list[str] = ["PAPER_MO
     if step == 1:
         csv_file = "analysis_step1.csv"
         template_name = "template_step_1.html"
-        output_name = "Figure S1.html"
+        output_name = "Figure S1_2.html"
     elif step == 2:
         csv_file = "analysis_step2.csv"
         template_name = "template_step_2.html"
-        output_name = "Figure S2.html"
+        output_name = "Figure S2_2.html"
     elif step == 3:
         csv_file = "analysis_step3.csv"
         template_name = "template_step_3.html"
-        output_name = "Figure S3.html"
+        output_name = "Figure S3_3.html"
     else:
         raise ValueError(f"Unknown Step: {step}. Only 1, 2 or 3 valid.")
 
@@ -35,16 +35,12 @@ def create_interactive_plot(step: int, models_to_display: list[str] = ["PAPER_MO
 
     if step == 2:
         df = get_best_per_prompt(df)
+    elif step == 3:
+        idx_best = df.groupby(["model", "prompt_type"])["p_correct"].idxmax()
+        df = df.loc[idx_best].reset_index(drop=True)
 
     data_dict = {"data": df.to_dict(orient="records"), "unique_models": unique_models}
     prepared_data = json.dumps(data_dict)
-
-    rel_libs_dir = os.path.relpath(libs_dir, output_dir)
-    libs = {
-        "chart_js": os.path.join(rel_libs_dir, "chart.min.js"),
-        "sortable_js": os.path.join(rel_libs_dir, "sortable.min.js"),
-        "fontawesome_js": os.path.join(rel_libs_dir, "fontawesome-all.min.js")
-    }
 
     env = Environment(loader=FileSystemLoader(template_dir))
     template = env.get_template(template_name)
@@ -61,7 +57,7 @@ def create_interactive_plot(step: int, models_to_display: list[str] = ["PAPER_MO
         "chart_js_content": chart_js_content,
         "sortable_js_content": sortable_js_content,
         "fontawesome_js_content": fontawesome_js_content,
-        **({"model_labels": MODEL_LABELS} if step == 2 else {})
+        "model_labels": MODEL_LABELS
     }
 
     rendered = template.render(**context)

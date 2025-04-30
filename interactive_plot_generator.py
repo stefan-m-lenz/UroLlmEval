@@ -9,11 +9,10 @@ def get_best_per_prompt(df):
     return df.loc[idx]
 
 def create_interactive_plot(step: int, models_to_display: list[str] = ["PAPER_MODELS"]) -> None:
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "interactive_plots"))
-    data_dir = os.path.join(base_dir, "data")
-    template_dir = os.path.join(base_dir, "templates")
-    libs_dir = os.path.join(base_dir, "libs")
-    output_dir = os.path.join(base_dir, "output")
+    data_dir = os.path.join(".", "output")
+    template_dir = os.path.join("interactive_plots", "templates")
+    libs_dir = os.path.join(".", "interactive_plots", "libs")
+    output_dir = os.path.join(".", "output", "summary", "plots")
     os.makedirs(output_dir, exist_ok=True)
 
     if step == 1:

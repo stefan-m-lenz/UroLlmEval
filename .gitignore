@@ -3,5 +3,4 @@ output/*
 venv/*
 processed_csvs
 interactive_plots/data
-interactive_plots/libs
 project/

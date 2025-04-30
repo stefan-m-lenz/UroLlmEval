@@ -102,7 +102,7 @@ After the evaluation script has been run, the following script may be used to cr
 python ./create_figures.py
 ```
 
-The plots are then created in the folder `output/summary/plots` and the suplementary interactive HTML plots in `interactive_plots/output`.
+The plots are then created in the folder `output/summary/plots`.
 
 ## Citation
 

@@ -2,6 +2,7 @@ import os
 import glob
 import pandas as pd
 import ast
+from datetime import datetime
 from analyze_step3_results import normalize_date_answer
 from results_helper import extract_model_name_from_filename, extract_prompt_type_from_filename
 
@@ -74,7 +75,66 @@ def load_and_compute_failure_rate(csv_file):
     }
 
 
-def main(input_folder="./output"):
+
+
+
+def parse_with_assumed_middle(date_str):
+    """
+    Parse a normalized date string ('YYYY', 'YYYY-MM', or 'YYYY-MM-DD')
+    and return a datetime object, using the middle of the year/month as needed.
+    """
+    if not date_str or date_str == "0":
+        return None
+    try:
+        if len(date_str) == 4:
+            # Only year
+            return datetime.strptime(date_str, "%Y").replace(month=7, day=1)
+        elif len(date_str) == 7:
+            # Year + month
+            return datetime.strptime(date_str, "%Y-%m").replace(day=15)
+        elif len(date_str) == 10:
+            # Full date
+            return datetime.strptime(date_str, "%Y-%m-%d")
+    except Exception:
+        return None
+
+def load_and_compute_date_diffs(csv_file):
+    df = pd.read_csv(csv_file)
+
+    df = df[
+        (df["expected_answer"] != "0") &
+        (df["model_answer"] != "Nein") &
+        (df["expected_answer"].notna()) &
+        (df["model_answer"].notna())
+    ].copy()
+
+    df["model_norm"] = df["model_answer"].apply(lambda x: normalize_date_answer(str(x)))
+    df["expected_norm"] = df["expected_answer"].apply(lambda x: normalize_date_answer(str(x)))
+
+    df["model_parsed"] = df["model_norm"].apply(parse_with_assumed_middle)
+    df["expected_parsed"] = df["expected_norm"].apply(parse_with_assumed_middle)
+
+    diff_rows = df[
+        (df["model_parsed"].notna()) &
+        (df["expected_parsed"].notna()) &
+        (df["model_norm"] != df["expected_norm"])
+    ].copy()
+
+    if diff_rows.empty:
+        mean_diff = None
+    else:
+        diff_rows["days_diff"] = (diff_rows["model_parsed"] - diff_rows["expected_parsed"]).abs().dt.days
+        mean_diff = diff_rows["days_diff"].mean()
+
+    return {
+        "file": os.path.basename(csv_file),
+        "model": extract_model_name_from_filename(csv_file, step=3),
+        "prompt_type": extract_prompt_type_from_filename(csv_file),
+        "mean_diff_wrong_dates": mean_diff
+    }
+
+
+def get_median_pct_date_not_in_regex(input_folder):
     csv_files = glob.glob(os.path.join(input_folder, "step3*.csv"))
     summary = [load_and_compute_failure_rate(file) for file in csv_files]
     df_summary = pd.DataFrame(summary)
@@ -94,6 +154,28 @@ def main(input_folder="./output"):
 
     print("\nFor each prompt type: median % of wrong dates that are not in the dates extracted by regex:")
     print(statistics.to_string(index=False))
+
+    return statistics
+
+
+def main():
+    input_folder = "output"
+    get_median_pct_date_not_in_regex(input_folder)
+
+    csv_files = glob.glob(os.path.join(input_folder, "step3*.csv"))
+    diff_summaries = [load_and_compute_date_diffs(file) for file in csv_files]
+    df_diffs = pd.DataFrame(diff_summaries)
+    df_diffs.to_csv("output/summary/mean_date_diffs_per_file.csv", index=False)
+
+    q25 = df_diffs["mean_diff_wrong_dates"].quantile(0.25)
+    q50 = df_diffs["mean_diff_wrong_dates"].quantile(0.50)  # same as median()
+    q75 = df_diffs["mean_diff_wrong_dates"].quantile(0.75)
+
+    print("\nQuantiles of per-file mean date differences:")
+    print(f"  25th percentile: {q25:.2f} days")
+    print(f"  50th percentile (median): {q50:.2f} days")
+    print(f"  75th percentile: {q75:.2f} days")
+
 
 if __name__ == "__main__":
     main()

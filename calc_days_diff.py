@@ -7,6 +7,7 @@ from datetime import datetime
 from analyze_step3_results import normalize_date_answer
 from results_helper import extract_model_name_from_filename, extract_prompt_type_from_filename
 
+
 def parse_date(date_str):
     if not date_str or date_str == "0":
         return None
@@ -16,6 +17,7 @@ def parse_date(date_str):
         except ValueError:
             continue
     return None
+
 
 def compare_csv_dates(csv_file, output_csv=None):
     df = pd.read_csv(csv_file)
@@ -68,40 +70,47 @@ def compare_csv_dates(csv_file, output_csv=None):
     df["model_answer_in_regex_matches"] = df.apply(model_in_regex, axis=1)
 
     if output_csv:
-        df[[
-            "expected_answer", "model_answer", "model_norm", "expected_norm",
-            "days_diff", "months_diff", "model_answer_in_regex_matches"
-        ]].to_csv(output_csv, index=False)
+        # df[[
+        #     "expected_answer", "model_answer", "model_norm", "expected_norm",
+        #     "days_diff", "months_diff", "model_answer_in_regex_matches"
+        # ]].to_csv(output_csv, index=False)
+        pass
 
     return df
 
-def process_csv_folder(input_folder, output_folder):
-    if not os.path.exists(output_folder):
+
+def process_csv_folder(input_folder, output_folder=None):
+    if output_folder and not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
     csv_files = glob.glob(os.path.join(input_folder, "*.csv"))
+    processed_dfs = {}
     for csv_file in csv_files:
         base_name = os.path.basename(csv_file)
-        if not (base_name.startswith("step3")):
+        if not base_name.startswith("step3"):
             continue
-        file_name, ext = os.path.splitext(base_name)
-        output_file = os.path.join(output_folder, file_name + "_days_diff.csv")
-        compare_csv_dates(csv_file, output_file)
+        file_name, _ = os.path.splitext(base_name)
+        if output_folder:
+            output_file = os.path.join(output_folder, file_name + "_days_diff.csv")
+        else:
+            output_file = None
 
-def summarize_results(processed_folder, summary_csv):
+        df = compare_csv_dates(csv_file, output_file)
+        processed_dfs[base_name] = df
+
+    return processed_dfs
+
+
+def summarize_results(processed_dfs):
     summary_list = []
-    processed_files = glob.glob(os.path.join(processed_folder, "*_days_diff.csv"))
 
-    for csv_file in processed_files:
-        df = pd.read_csv(csv_file)
-        base_name = os.path.basename(csv_file)
-
-        # Modell- und Prompt-Typ extrahieren
+    for base_name, df in processed_dfs.items():
         try:
             model_name = extract_model_name_from_filename(base_name, step=3)
             prev_model_name = extract_model_name_from_filename(base_name, step=2)
         except Exception:
             model_name = None
+            prev_model_name = None
         try:
             prompt_type = extract_prompt_type_from_filename(base_name)
         except Exception:
@@ -130,12 +139,10 @@ def summarize_results(processed_folder, summary_csv):
             axis=1
         ).sum()
 
-        # Prozentwerte (optional)
-        pct_na    = num_na_answers    / num_questions * 100 if num_questions else 0
+        pct_na = num_na_answers / num_questions * 100 if num_questions else 0
         pct_equal = num_equal_answers / num_questions * 100 if num_questions else 0
-        pct_diff  = num_diff_answers  / num_questions * 100 if num_questions else 0
+        pct_diff = num_diff_answers / num_questions * 100 if num_questions else 0
 
-        # Für detaillierte Statistiken nur die unterschiedlichen Antworten betrachten
         diff_df = df[df["days_diff"].apply(lambda x: pd.notna(x) and x > 0)]
 
         days_series = pd.to_numeric(diff_df["days_diff"], errors="coerce").dropna()
@@ -144,7 +151,6 @@ def summarize_results(processed_folder, summary_csv):
         days_stats = days_series.describe() if not days_series.empty else {}
         months_stats = months_series.describe() if not months_series.empty else {}
 
-        # Stats für die falsch-Regex-geprüften
         wrong_not_in_regex_df = diff_df[~diff_df["model_answer_in_regex_matches"]]
         days_stats_wrong_not_in_regex = (
             pd.to_numeric(wrong_not_in_regex_df["days_diff"], errors="coerce")
@@ -192,16 +198,16 @@ def summarize_results(processed_folder, summary_csv):
             "months_max_wrong_not_in_regex": months_stats_wrong_not_in_regex.get("max", None),
         })
 
-    # DataFrame erstellen, sortieren und als CSV speichern
     summary_df = pd.DataFrame(summary_list)
     summary_df.sort_values(by=["model", "prompt type"], inplace=True)
-    summary_df.to_csv(summary_csv, index=False)
+
+    return summary_df
+
 
 if __name__ == "__main__":
     input_folder = "./output"
-    processed_folder = "./processed_csvs"
 
-    process_csv_folder(input_folder, processed_folder)
+    processed_dfs = process_csv_folder(input_folder)
+    summary_df = summarize_results(processed_dfs)
 
-    summary_csv = os.path.join(processed_folder, "summary_results.csv")
-    summarize_results(processed_folder, summary_csv)
+    summary_df.to_csv("output/summary/days_diffs.csv", index=False)

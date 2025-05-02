@@ -75,9 +75,6 @@ def load_and_compute_failure_rate(csv_file):
     }
 
 
-
-
-
 def parse_with_assumed_middle(date_str):
     """
     Parse a normalized date string ('YYYY', 'YYYY-MM', or 'YYYY-MM-DD')
@@ -97,7 +94,6 @@ def parse_with_assumed_middle(date_str):
             return datetime.strptime(date_str, "%Y-%m-%d")
     except Exception:
         return None
-
 def load_and_compute_date_diffs(csv_file):
     df = pd.read_csv(csv_file)
 
@@ -121,17 +117,17 @@ def load_and_compute_date_diffs(csv_file):
     ].copy()
 
     if diff_rows.empty:
-        mean_diff = None
-    else:
-        diff_rows["days_diff"] = (diff_rows["model_parsed"] - diff_rows["expected_parsed"]).abs().dt.days
-        mean_diff = diff_rows["days_diff"].mean()
+        return pd.DataFrame()
 
-    return {
-        "file": os.path.basename(csv_file),
-        "model": extract_model_name_from_filename(csv_file, step=3),
-        "prompt_type": extract_prompt_type_from_filename(csv_file),
-        "mean_diff_wrong_dates": mean_diff
-    }
+    diff_rows["days_diff"] = (diff_rows["model_parsed"] - diff_rows["expected_parsed"]).abs().dt.days
+    diff_rows["file"] = os.path.basename(csv_file)
+    diff_rows["model"] = extract_model_name_from_filename(csv_file, step=3)
+    diff_rows["prompt_type"] = extract_prompt_type_from_filename(csv_file)
+
+    return diff_rows[[
+        "file", "model", "prompt_type", "expected_answer", "model_answer",
+        "expected_norm", "model_norm", "days_diff"
+    ]]
 
 
 def get_median_pct_date_not_in_regex(input_folder):
@@ -145,7 +141,9 @@ def get_median_pct_date_not_in_regex(input_folder):
         df_summary
         .groupby("prompt_type")["pct_diff_not_in_regex"]
         .agg(
+            q25_pct_diff_not_in_regex=lambda x: x.quantile(0.25),
             median_pct_diff_not_in_regex="median",
+            q75_pct_diff_not_in_regex=lambda x: x.quantile(0.75),
             max_pct_diff_not_in_regex="max",
         )
         .reset_index()
@@ -160,18 +158,19 @@ def get_median_pct_date_not_in_regex(input_folder):
 
 def main():
     input_folder = "output"
-    get_median_pct_date_not_in_regex(input_folder)
+    #get_median_pct_date_not_in_regex(input_folder)
 
     csv_files = glob.glob(os.path.join(input_folder, "step3*.csv"))
-    diff_summaries = [load_and_compute_date_diffs(file) for file in csv_files]
-    df_diffs = pd.DataFrame(diff_summaries)
-    df_diffs.to_csv("output/summary/mean_date_diffs_per_file.csv", index=False)
+    csv_files = [file for file in csv_files if "levenshtein-regex" not in file]
+    all_diffs = [load_and_compute_date_diffs(file) for file in csv_files]
+    df_diffs = pd.concat(all_diffs, ignore_index=True)
 
-    q25 = df_diffs["mean_diff_wrong_dates"].quantile(0.25)
-    q50 = df_diffs["mean_diff_wrong_dates"].quantile(0.50)  # same as median()
-    q75 = df_diffs["mean_diff_wrong_dates"].quantile(0.75)
+    # Now compute overall quantiles directly
+    q25 = df_diffs["days_diff"].quantile(0.25)
+    q50 = df_diffs["days_diff"].quantile(0.50)  # median
+    q75 = df_diffs["days_diff"].quantile(0.75)
 
-    print("\nQuantiles of per-file mean date differences:")
+    print("\nQuantiles of date differences across all mismatches:")
     print(f"  25th percentile: {q25:.2f} days")
     print(f"  50th percentile (median): {q50:.2f} days")
     print(f"  75th percentile: {q75:.2f} days")

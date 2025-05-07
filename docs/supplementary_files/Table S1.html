@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Snippet-Table</title>
+  <title>Table S1: Relationship between patients, text snippets, and annotated diagnoses</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -55,9 +55,12 @@
     <div class="text-column">
       <h2>Table S1</h2>
       <div class="explanation">
-        This table presents the distribution of ICD-10 diagnosis codes for each patient.
-        Each row corresponds to a snippet from the XML document, with color-coded diagnosis codes.
-        The color coding helps to visually identify different diagnoses across patient records.
+        Relationship between patients, text snippets, and the annotated diagnoses.
+        The table columns show the patient identifier, the number of snippets per patient,
+        the snippet identifier (i.e., the array index in the
+        <a href="https://huggingface.co/datasets/stefan-m-lenz/UroLlmEvalSet">
+        Hugging Face dataset</a>), and the diagnosis codes that were annotated for
+        the snippet.
       </div>
     </div>
     <div class="table-column">
@@ -71,7 +74,7 @@
         <thead>
           <tr>
             <th>Patient ID</th>
-            <th>Number of Snippets</th>
+            <th>Number of snippets</th>
             <th>Snippet ID</th>
             <th>Diagnoses</th>
           </tr>

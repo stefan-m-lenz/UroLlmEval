@@ -113,7 +113,7 @@ If you use this code or the evaluation data in your work, please consider citing
   title        = {Can open source large language models be used for tumor documentation in {Germany}? - {An} evaluation on urological doctors' notes},
   author       = {Lenz, Stefan and Ustjanzew, Arsenij and Jeray, Marco and Panholzer, Torsten},
   year         = {2025},
-  month        = {Jan},
+  month        = {May},
   journal      = {arXiv preprint},
   volume       = {arXiv:2501.12106},
   doi          = {10.48550/arXiv.2501.12106},

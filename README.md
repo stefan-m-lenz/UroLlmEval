@@ -7,7 +7,7 @@ This repository contains Python code that builds on the `transformers` package t
 
 More information about the data set and the design of the evaluation can be found in the article:
 
-> Lenz, S., Ustjanzew, A., Jeray, M., Panholzer, T. (2025). Can open source large language models be used for tumor documentation in Germany?  - An evaluation on urological doctors’ notes. [arXiv preprint](http://arxiv.org/abs/2501.12106).
+> Lenz, S., Ustjanzew, A., Jeray, M., Ressing, M., Panholzer, T. (2025). Can open source large language models be used for tumor documentation in Germany?  - An evaluation on urological doctors’ notes. [arXiv preprint](http://arxiv.org/abs/2501.12106).
 
 
 ## Setup
@@ -111,7 +111,7 @@ If you use this code or the evaluation data in your work, please consider citing
 ```bibtex
 @article{UroLlmEval_2025,
   title        = {Can open source large language models be used for tumor documentation in {Germany}? - {An} evaluation on urological doctors' notes},
-  author       = {Lenz, Stefan and Ustjanzew, Arsenij and Jeray, Marco and Panholzer, Torsten},
+  author       = {Lenz, Stefan and Ustjanzew, Arsenij and Jeray, Marco and Ressing, Meike and Panholzer, Torsten},
   year         = {2025},
   month        = {May},
   journal      = {arXiv preprint},

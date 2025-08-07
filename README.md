@@ -7,8 +7,7 @@ This repository contains Python code that builds on the `transformers` package t
 
 More information about the data set and the design of the evaluation can be found in the article:
 
-> Lenz, S., Ustjanzew, A., Jeray, M., Ressing, M., Panholzer, T. (2025). Can open source large language models be used for tumor documentation in Germany?  - An evaluation on urological doctors’ notes. [arXiv preprint](http://arxiv.org/abs/2501.12106).
-
+> Lenz, S., Ustjanzew, A., Jeray, M., Ressing, M., & Panholzer, T. (2025). Can open source large language models be used for tumor documentation in Germany?—An evaluation on urological doctors’ notes. BioData Mining, 18(1), 48. https://doi.org/10.1186/s13040-025-00463-8
 
 ## Setup
 The project was developed using Python 3.12.
@@ -110,15 +109,15 @@ If you use this code or the evaluation data in your work, please consider citing
 
 ```bibtex
 @article{UroLlmEval_2025,
-  title        = {Can open source large language models be used for tumor documentation in {Germany}? - {An} evaluation on urological doctors' notes},
-  author       = {Lenz, Stefan and Ustjanzew, Arsenij and Jeray, Marco and Ressing, Meike and Panholzer, Torsten},
-  year         = {2025},
-  month        = {May},
-  journal      = {arXiv preprint},
-  volume       = {arXiv:2501.12106},
-  doi          = {10.48550/arXiv.2501.12106},
-  url          = {http://arxiv.org/abs/2501.12106},
-  publisher    = {arXiv}
+    title = {Can open source large language models be used for tumor documentation in {Germany}?—{An} evaluation on urological doctors’ notes},
+    author = {Lenz, Stefan and Ustjanzew, Arsenij and Jeray, Marco and Ressing, Meike and Panholzer, Torsten},
+    year = {2025},
+    month = jul,
+    journal = {BioData Mining},
+    volume = {18},
+    number = {1},
+    doi = {10.1186/s13040-025-00463-8},
+    url = {https://doi.org/10.1186/s13040-025-00463-8}	
 }
 ```
 
